@@ -1,0 +1,19 @@
+# Dockerfile.dev
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies early
+COPY package*.json ./
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose Vite dev port
+EXPOSE 5173
+
+# Start Vite in development mode with HMR
+CMD ["npm", "run", "dev"]
+

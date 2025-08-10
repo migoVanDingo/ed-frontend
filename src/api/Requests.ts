@@ -63,10 +63,10 @@ export class Requests {
     });
 
   // AUTHENTICATED POSTS — include token
-  public static doPost = async (data: any, endpoint: string, port: string) => {
+  public static doPost = async (data: any, endpoint: string, port: string, customHeaders: Record<string, string> = {}) => {
     const headers = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+      ...customHeaders,
     };
     const res = await this.request("post", endpoint, port, {
       data,
@@ -79,10 +79,10 @@ export class Requests {
     return res;
   };
 
-  public static doGet = async (endpoint: string, port: string) => {
+  public static doGet = async (endpoint: string, port: string, customHeaders: Record<string, string> = {}) => {
     const headers = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+      ...customHeaders,
     };
     return this.request("get", endpoint, port, {
       headers,
@@ -90,27 +90,27 @@ export class Requests {
     });
   };
 
-  public static doPatch = async (data: any, endpoint: string, port: string) => {
+  public static doPatch = async (data: any, endpoint: string, port: string, customHeaders: Record<string, string> = {}) => {
     const headers = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+      ...customHeaders,
     };
     return this.request("patch", endpoint, port, { data, headers, withCredentials: true, });
   };
 
-  public static doPut = async (data: any, endpoint: string, port: string) => {
+  public static doPut = async (data: any, endpoint: string, port: string, customHeaders: Record<string, string> = {}) => {
     const headers = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+      ...customHeaders,
     };
     return this.request("put", endpoint, port, { data, headers, withCredentials: true });
   };
 
-  public static doDelete = async (endpoint: string, port: string) =>
+  public static doDelete = async (endpoint: string, port: string, customHeaders: Record<string, string> = {}) =>
     this.request("delete", endpoint, port, {
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+            ...customHeaders,
         },
         withCredentials: true,  
     });

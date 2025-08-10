@@ -36,11 +36,11 @@ const LoginPage = () => {
       return
     }
 
-    console.log("Login successful:", response.data)
     const navigateToDashboard = () => {
       setLoading(false)
-      //nav("/dashboard")
+      nav("/dashboard")
     }
+    
     const { cancel } = runTaskSequence([
       {
         name: "step1",

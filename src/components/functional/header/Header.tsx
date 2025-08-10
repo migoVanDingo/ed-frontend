@@ -7,11 +7,11 @@ import Avatar from "@mui/material/Avatar";
 import { useNavigate } from "react-router-dom";
 import { useColorMode } from "../../../theme/ThemeProvider";
 
-interface PublicHeaderProps {
+interface HeaderProps {
   username: string;
 }
 
-const PublicHeader = ({ username }: PublicHeaderProps) => {
+const Header = ({ username }: HeaderProps) => {
   const navigate = useNavigate();
   const theme = useTheme();
   const { mode, toggleMode } = useColorMode();
@@ -76,4 +76,4 @@ const PublicHeader = ({ username }: PublicHeaderProps) => {
   );
 };
 
-export default PublicHeader;
+export default Header;

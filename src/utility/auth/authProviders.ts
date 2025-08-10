@@ -21,25 +21,21 @@ async function handleSocialLogin(
     const info = getAdditionalUserInfo(result);
 
     const idToken = await result.user.getIdToken();
-    sessionStorage.setItem("accessToken", idToken);
     if (info?.isNewUser) {
 
-        const {success, data, err} = await UserAPI.register();
+        const {success, data, err} = await UserAPI.register(idToken);
         if (!success) {
           console.error("Error registering user:", err);
           return { success: false};
         }
 
-        sessionStorage.setItem("accessToken", data.access_token);
         return { success: true };
     } else {
-      const { success, data, err } = await UserAPI.login();
+      const { success, data, err } = await UserAPI.login(idToken);
       if (!success) {
         console.error("Error logging in user:", err);
         return { success: false };
       }
-
-      sessionStorage.setItem("accessToken", data.access_token);
       return { success, data };
     }
 
@@ -58,15 +54,13 @@ export const handleEmailLogin = async ({email, password}: IUserAuth) => {
   try {
     const result = await signInWithEmailAndPassword(auth, email, password)
     console.log("Email Login Success:", result.user)
-    const idToken = await result.user.getIdToken()
-    sessionStorage.setItem("accessToken", idToken);
-    const { success, data, err } = await UserAPI.login();
+    const idToken = await result.user.getIdToken()  ;
+    const { success, data, err } = await UserAPI.login(idToken);
     if (!success) {
       console.error("Error logging in user:", err);
       return { success: false };
     }
 
-    sessionStorage.setItem("accessToken", data.access_token);
     return { success, data };
   } catch (err) {
     console.error("Email Login Error", err)
@@ -85,8 +79,7 @@ export const handleEmailRegister = async ({
     const idToken = await result.user.getIdToken();
     const info = getAdditionalUserInfo(result);
     if (info?.isNewUser) {
-        sessionStorage.setItem("accessToken", idToken);
-        const {success, data, err} = await UserAPI.registerUnverified();
+        const {success, data, err} = await UserAPI.registerUnverified(idToken);
 
         if (!success) {
           console.error("Error registering user:", err);

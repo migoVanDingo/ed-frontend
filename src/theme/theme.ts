@@ -23,6 +23,7 @@ const commonTheme: ThemeOptions = {
       xl: 12
     },
     spacing: {
+      min: 1,
       xs: 2,   // 0.5rem
       sm: 4,   // 1rem
       md: 8,  // 2rem
@@ -55,6 +56,11 @@ const lightTheme: ThemeOptions = {
     background: {
       default: "#fafafa",
       paper: "#ffffff",
+    },
+    boxShadow: {
+      light: "1px 2px 4px rgba(0, 0, 0, 0.3)",
+      medium: "1px 4px 8px rgba(0, 0, 0, 0.3)",
+      dark: "1px 8px 16px rgba(0, 0, 0, 0.3)",
     },
     text: {
       primary: "#212121",   // strong body text
@@ -91,6 +97,11 @@ const darkTheme: ThemeOptions = {
       paper: "#1a1a1a",   // cards and surfaces
 
     },
+    boxShadow: {
+      light: "2px 2px 4px rgba(0, 0, 0, 0.5)",
+      medium: "2px 4px 8px rgba(0, 0, 0, 0.5)",
+      dark: "2px 8px 16px rgba(0, 0, 0, 0.5)",
+    },
     text: {
       primary: "#ffffff",  // main content
       secondary: "#b0b0b0", // subtext, labels
@@ -120,6 +131,7 @@ declare module '@mui/material/styles' {
         xl: number
       }
       spacing: {
+        min: number
         xs: number
         sm: number
         md: number
@@ -143,30 +155,41 @@ declare module '@mui/material/styles' {
         header?: {
           height?: number
         }
-      }
+      },
+      
     }
   }
 
-  interface Palette {
+   interface Palette {
     accent1: {
-      dim: string
-      vibrant: string
-    },
+      dim: string;
+      vibrant: string;
+    };
     accent2: {
-      dim: string
-      vibrant: string
-    },
+      dim: string;
+      vibrant: string;
+    };
+    boxShadow: {
+      light: string;
+      medium: string;
+      dark: string;
+    };
   }
 
   interface PaletteOptions {
     accent1?: {
-      dim: string
-      vibrant: string
-    },
+      dim: string;
+      vibrant: string;
+    };
     accent2?: {
-      dim: string
-      vibrant: string
-    },
+      dim: string;
+      vibrant: string;
+    };
+    boxShadow?: {
+      light: string;
+      medium: string;
+      dark: string;
+    };
   }
 }
 

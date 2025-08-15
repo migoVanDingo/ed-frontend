@@ -136,7 +136,7 @@ const router = createBrowserRouter([
         path: "dashboard",
         element: <DashboardLayout />,
         id: "dashboard-layout",
-        loader: withMiddlewareLoader([requireAuth]),
+        //loader: withMiddlewareLoader([requireAuth]),
         errorElement: <ErrorPage />,
         children: [
           {

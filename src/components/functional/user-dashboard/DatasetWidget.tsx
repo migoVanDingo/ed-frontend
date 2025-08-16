@@ -1,6 +1,6 @@
-import React from "react"
+import HeadingBlock from "../../common/HeadingBlock"
 import { SStack } from "../../styled/SStack"
-import { Typography } from "@mui/material"
+import DatasetOverview from "./dataset-widget/DatasetOverview"
 
 const DatasetWidget = () => {
   return (
@@ -8,13 +8,18 @@ const DatasetWidget = () => {
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["primary", "light"]}
-      paddingSize="md"
-      marginSize="sm"
-      expand
+      bgColor={["transparent"]}
+      noBorder
+      noShadow
+      sx={{
+        flex: 3,
+      }}
     >
-        <Typography variant="h6">Dataset Widget</Typography>
-        <Typography variant="body2">This is a summary of the dataset.</Typography>
+      <HeadingBlock 
+      heading="Dataset Overview"
+      headingWeight={200}
+      />
+      <DatasetOverview />
     </SStack>
   )
 }

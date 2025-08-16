@@ -1,30 +1,39 @@
-import React from 'react'
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import CardActions from '@mui/material/CardActions'
-import Button from '@mui/material/Button'
-import Chip from '@mui/material/Chip'
-import Typography from '@mui/material/Typography'
-import IconButton from '@mui/material/IconButton'
-import MoreVertIcon from '@mui/icons-material/MoreVert'
-import Stack from '@mui/material/Stack'
-import { useTheme } from '@mui/material/styles'
-import type { Theme } from '@mui/material/styles'
+import React from "react"
+import Card from "@mui/material/Card"
+import CardContent from "@mui/material/CardContent"
+import CardActions from "@mui/material/CardActions"
+import Button from "@mui/material/Button"
+import Chip from "@mui/material/Chip"
+import Typography from "@mui/material/Typography"
+import IconButton from "@mui/material/IconButton"
+import MoreVertIcon from "@mui/icons-material/MoreVert"
+import Stack from "@mui/material/Stack"
+import { useTheme } from "@mui/material/styles"
+import type { Theme } from "@mui/material/styles"
 
 interface CustomCardProps {
   title: string
   orgName: string
   description: string
   statusLabel: string
-  statusColor?: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'
+  statusColor?:
+    | "default"
+    | "primary"
+    | "secondary"
+    | "error"
+    | "info"
+    | "success"
+    | "warning"
   datasetsCount: number
   lastUpdated: string
   onOpen?: () => void
   onSettings?: () => void
   onMenuClick?: () => void
-  accentColor?: keyof Theme['palette'] // e.g. "accent1" | "accent2" | "primary"
-  borderRadius?: keyof Theme['custom']['radii']
+  accentColor?: keyof Theme["palette"] // e.g. "accent1" | "accent2" | "primary"
+  borderRadius?: keyof Theme["custom"]["radii"]
   disableShadow?: boolean
+  height?: number
+  width?: number
 }
 
 const CustomCard: React.FC<CustomCardProps> = ({
@@ -32,14 +41,16 @@ const CustomCard: React.FC<CustomCardProps> = ({
   orgName,
   description,
   statusLabel,
-  statusColor = 'default',
+  statusColor = "default",
   datasetsCount,
   lastUpdated,
+  height,
+  width,
   onOpen,
   onSettings,
   onMenuClick,
-  accentColor = 'accent1',
-  borderRadius = 'xs',
+  accentColor = "accent1",
+  borderRadius = "xs",
   disableShadow = false,
 }) => {
   const theme = useTheme()
@@ -49,14 +60,18 @@ const CustomCard: React.FC<CustomCardProps> = ({
   return (
     <Card
       sx={{
+        border: `1px solid ${theme.palette.divider}`,
         borderRadius: theme.custom?.radii?.[borderRadius],
         backgroundColor: theme.palette.background.paper,
-        boxShadow: disableShadow ? 'none' : theme.palette.boxShadow?.light,
-        display: 'flex',
-        flexDirection: 'column',
-        paddingLeft: theme.custom?.spacing?.min,
-        paddingBottom: theme.custom?.spacing?.min,
-        paddingRight: theme.custom?.spacing?.min
+        boxShadow: disableShadow ? "none" : theme.palette.boxShadow?.light,
+        display: "flex",
+        flexDirection: "column",
+        paddingLeft: theme.custom?.spacing?.xs,
+        paddingBottom: theme.custom?.spacing?.xs,
+        paddingRight: theme.custom?.spacing?.xs,
+        height: height ? height : "auto", // ✅ default auto height
+        minHeight: 200, // ✅ keeps card from being scrunched
+        width: width || "100%",
       }}
     >
       <CardContent sx={{ flexGrow: 1 }}>
@@ -104,7 +119,7 @@ const CustomCard: React.FC<CustomCardProps> = ({
           sx={{
             backgroundColor: accent?.vibrant,
             color: theme.palette.getContrastText(accent?.vibrant),
-            '&:hover': {
+            "&:hover": {
               backgroundColor: accent?.dim,
             },
           }}
@@ -118,7 +133,7 @@ const CustomCard: React.FC<CustomCardProps> = ({
           sx={{
             color: accent?.vibrant,
             borderColor: accent?.vibrant,
-            '&:hover': {
+            "&:hover": {
               backgroundColor: accent?.dim,
               borderColor: accent?.vibrant,
             },

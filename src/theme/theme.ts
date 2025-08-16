@@ -35,7 +35,21 @@ const commonTheme: ThemeOptions = {
         header: {
             height: 50, // default header height
         }
-    }
+    },
+    font: {
+      weight: {
+        regular: 200,
+        medium: 400,
+        bold: 600,
+      },
+      size: {
+        xs: '0.5rem',
+        sm: '0.7rem',
+        md: '1rem',
+        lg: '1.2rem',
+        xl: '1.5rem',
+      }
+    },
   },
 }
 
@@ -144,6 +158,20 @@ declare module '@mui/material/styles' {
           height: number
         }
       }
+      font: {
+        weight: {
+          regular: number
+          medium: number
+          bold: number
+        }
+        size: {
+          xs: string
+          sm: string
+          md: string
+          lg: string
+          xl: string
+        }
+      }
     }
   }
 
@@ -156,6 +184,20 @@ declare module '@mui/material/styles' {
           height?: number
         }
       },
+      font?: {
+        weight?:{
+          regular: number
+          medium: number
+          bold: number
+        }
+        size?: {
+          xs?: string
+          sm?: string
+          md?: string
+          lg?: string
+          xl?: string
+        }
+      }
       
     }
   }

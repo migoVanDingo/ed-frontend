@@ -1,12 +1,12 @@
 import React from 'react';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@emotion/react';
-import DatastoreWidget from '../components/functional/user-dashboard/datastore-widget/DatastoreWidget';
-import DatasetWidget from '../components/functional/user-dashboard/DatasetWidget';
 import ProjectList from '../components/functional/user-dashboard/ProjectList';
-import LLMWidget from '../components/functional/user-dashboard/LLMWidget';
-import RecentActivityFeed from '../components/functional/user-dashboard/RecentActivityFeed';
-import NotificationWidget from '../components/functional/user-dashboard/NotificationWidget';
+import LLMWidget from '../components/functional/user-dashboard/llm-widget/LLMWidget';
+import DatastoreOverview from '../components/functional/user-dashboard/datastore-widget/DatastoreOverview';
+import DatasetOverview from '../components/functional/user-dashboard/dataset-widget/DatasetOverview';
+import RecentActivity from '../components/functional/user-dashboard/recent-activity-widget/RecentActivity';
+import ConnectionsWidget from '../components/functional/user-dashboard/connections-widget/ConnectionsWidget';
 
 
 const DashboardPage = () => {
@@ -19,8 +19,8 @@ const DashboardPage = () => {
   })}>
       {/* Column 1 */}
       <Grid size={{ xs: 12, md: 3}} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <DatastoreWidget />
-        <DatasetWidget />
+        <DatastoreOverview />
+        <DatasetOverview />
       </Grid>
 
       {/* Column 2 */}
@@ -31,8 +31,8 @@ const DashboardPage = () => {
       {/* Column 3 */}
       <Grid size={{ xs: 12, md: 3 }} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         <LLMWidget />
-        <RecentActivityFeed />
-        <NotificationWidget />
+        <RecentActivity />
+        <ConnectionsWidget />
       </Grid>
     </Grid>
   );

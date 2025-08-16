@@ -3,7 +3,7 @@ import Stack, { type StackProps } from "@mui/material/Stack";
 import type { Theme } from "@mui/material/styles";
 
 interface CustomStackProps extends StackProps {
-  height?: number;
+  height?: string | number;
   width?: number;
   radius?: keyof Theme["custom"]["radii"];
   bgColor?: string[];

@@ -66,11 +66,9 @@ const CustomCard: React.FC<CustomCardProps> = ({
         boxShadow: disableShadow ? "none" : theme.palette.boxShadow?.light,
         display: "flex",
         flexDirection: "column",
-        paddingLeft: theme.custom?.spacing?.xs,
         paddingBottom: theme.custom?.spacing?.xs,
-        paddingRight: theme.custom?.spacing?.xs,
-        height: height ? height : "auto", // ✅ default auto height
-        minHeight: 200, // ✅ keeps card from being scrunched
+        height: height ? height : "auto",
+        minHeight: 200,
         width: width || "100%",
       }}
     >
@@ -111,7 +109,7 @@ const CustomCard: React.FC<CustomCardProps> = ({
       </CardContent>
 
       {/* Bottom buttons */}
-      <CardActions sx={{ pt: 0 }}>
+      <CardActions sx={{ pt: 0, ml: "auto", pr: theme.custom?.spacing?.xs }}>
         <Button
           size="small"
           variant="contained"

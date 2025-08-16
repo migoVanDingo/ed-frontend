@@ -2,12 +2,33 @@
 import { createTheme, type ThemeOptions } from "@mui/material/styles"
 import { deepmerge } from "@mui/utils"
 
-// Common (shared) theme values
+// ✅ Import all Material palettes
+import {
+  red,
+  pink,
+  purple,
+  deepPurple,
+  indigo,
+  blue,
+  lightBlue,
+  cyan,
+  teal,
+  green,
+  lightGreen,
+  lime,
+  yellow,
+  amber,
+  orange,
+  deepOrange,
+  brown,
+  grey,
+  blueGrey,
+} from "@mui/material/colors"
+
+// ✅ Common base theme (shared)
 const commonTheme: ThemeOptions = {
-  spacing: 8, // MUI default spacing unit (8px)
-  shape: {
-    borderRadius: 8, // default
-  },
+  spacing: 8,
+  shape: { borderRadius: 8 },
   typography: {
     fontFamily: "'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif",
     h1: { fontFamily: "'Poppins', sans-serif" },
@@ -15,57 +36,43 @@ const commonTheme: ThemeOptions = {
     h3: { fontFamily: "'Poppins', sans-serif" },
   },
   custom: {
-    radii: {
-      xs: 1,
-      sm: 2,
-      md: 4,
-      lg: 8,
-      xl: 12
-    },
+    radii: { xs: 1, sm: 2, md: 4, lg: 8, xl: 12 },
     spacing: {
       min: 1,
-      xs: 2,   // 0.5rem
-      sm: 4,   // 1rem
-      md: 8,  // 2rem
-      lg: 16,  // 4rem
-      xl: 24,  // 8rem
-      xxl: 32, // 10rem 
+      xs: 2,
+      sm: 4,
+      md: 8,
+      lg: 16,
+      xl: 24,
+      xxl: 32,
     },
-    component: {
-        header: {
-            height: 50, // default header height
-        }
-    },
+    component: { header: { height: 50 } },
     font: {
-      weight: {
-        regular: 200,
-        medium: 400,
-        bold: 600,
-      },
+      weight: { regular: 200, medium: 400, bold: 600 },
       size: {
-        xs: '0.5rem',
-        sm: '0.7rem',
-        md: '1rem',
-        lg: '1.2rem',
-        xl: '1.5rem',
-      }
+        xs: "0.5rem",
+        sm: "0.7rem",
+        md: "1rem",
+        lg: "1.2rem",
+        xl: "1.5rem",
+      },
     },
   },
 }
 
-// Light theme specific values
+// ✅ Light theme
 const lightTheme: ThemeOptions = {
   palette: {
     mode: "light",
     primary: {
-      light: "#f5f5f5", // very light gray
-      main: "#e0e0e0",  // neutral UI background
-      dark: "#919191",  // hover states or subtle contrast
+      light: "#f5f5f5",
+      main: "#e0e0e0",
+      dark: "#919191",
     },
     secondary: {
-      light: "#616161", // for subtext or icons
-      main: "#424242",  // buttons or headings
-      dark: "#212121",  // highest contrast
+      light: "#616161",
+      main: "#424242",
+      dark: "#212121",
     },
     background: {
       default: "#fafafa",
@@ -77,8 +84,8 @@ const lightTheme: ThemeOptions = {
       dark: "1px 8px 16px rgba(0, 0, 0, 0.3)",
     },
     text: {
-      primary: "#212121",   // strong body text
-      secondary: "#616161", // muted labels and placeholders
+      primary: "#212121",
+      secondary: "#616161",
     },
     accent1: {
       dim: "#c0e4ff",
@@ -89,27 +96,25 @@ const lightTheme: ThemeOptions = {
       vibrant: "#f32196",
     },
   },
-};
+}
 
-
-// Dark theme specific values
+// ✅ Dark theme
 const darkTheme: ThemeOptions = {
   palette: {
     mode: "dark",
     primary: {
-      light: "#2a2a2a",  // subtle surface hover
-      main: "#1e1e1e",   // primary background / box
-      dark: "#121212",   // deepest base
+      light: "#2a2a2a",
+      main: "#1e1e1e",
+      dark: "#121212",
     },
     secondary: {
-      light: "#cccccc",  // icons or borders
-      main: "#e0e0e0",   // body text or UI highlights
-      dark: "#ffffff",   // high-contrast (e.g. headings)
+      light: "#cccccc",
+      main: "#e0e0e0",
+      dark: "#ffffff",
     },
     background: {
-      default: "#242424", // app background
-      paper: "#1a1a1a",   // cards and surfaces
-
+      default: "#242424",
+      paper: "#1a1a1a",
     },
     boxShadow: {
       light: "2px 2px 4px rgba(0, 0, 0, 0.5)",
@@ -117,8 +122,8 @@ const darkTheme: ThemeOptions = {
       dark: "2px 8px 16px rgba(0, 0, 0, 0.5)",
     },
     text: {
-      primary: "#ffffff",  // main content
-      secondary: "#b0b0b0", // subtext, labels
+      primary: "#ffffff",
+      secondary: "#b0b0b0",
     },
     accent1: {
       dim: "#1e3a4c",
@@ -129,21 +134,36 @@ const darkTheme: ThemeOptions = {
       vibrant: "#f32196",
     },
   },
-};
+}
 
+// ✅ All Material palettes
+const baseColors = {
+  red,
+  pink,
+  purple,
+  deepPurple,
+  indigo,
+  blue,
+  lightBlue,
+  cyan,
+  teal,
+  green,
+  lightGreen,
+  lime,
+  yellow,
+  amber,
+  orange,
+  deepOrange,
+  brown,
+  grey,
+  blueGrey,
+}
 
-// Extend MUI Theme to allow `custom` and `accent1/2` in palette
-declare module '@mui/material/styles' {
-
+// ✅ Type extensions
+declare module "@mui/material/styles" {
   interface Theme {
     custom: {
-      radii: {
-        xs: number
-        sm: number
-        md: number
-        lg: number
-        xl: number
-      }
+      radii: { xs: number; sm: number; md: number; lg: number; xl: number }
       spacing: {
         min: number
         xs: number
@@ -153,100 +173,44 @@ declare module '@mui/material/styles' {
         xl: number
         xxl: number
       }
-      component: {
-        header: {
-          height: number
-        }
-      }
+      component: { header: { height: number } }
       font: {
-        weight: {
-          regular: number
-          medium: number
-          bold: number
-        }
-        size: {
-          xs: string
-          sm: string
-          md: string
-          lg: string
-          xl: string
-        }
+        weight: { regular: number; medium: number; bold: number }
+        size: { xs: string; sm: string; md: string; lg: string; xl: string }
       }
     }
   }
 
   interface ThemeOptions {
-    custom?: {
-      radii?: Partial<Theme['custom']['radii']>
-      spacing?: Partial<Theme['custom']['spacing']>
-      component?: {
-        header?: {
-          height?: number
-        }
-      },
-      font?: {
-        weight?:{
-          regular: number
-          medium: number
-          bold: number
-        }
-        size?: {
-          xs?: string
-          sm?: string
-          md?: string
-          lg?: string
-          xl?: string
-        }
-      }
-      
-    }
+    custom?: Partial<Theme["custom"]>
   }
 
-   interface Palette {
-    accent1: {
-      dim: string;
-      vibrant: string;
-    };
-    accent2: {
-      dim: string;
-      vibrant: string;
-    };
-    boxShadow: {
-      light: string;
-      medium: string;
-      dark: string;
-    };
+  interface Palette {
+    accent1: { dim: string; vibrant: string }
+    accent2: { dim: string; vibrant: string }
+    boxShadow: { light: string; medium: string; dark: string }
+    colors: typeof baseColors
   }
 
   interface PaletteOptions {
-    accent1?: {
-      dim: string;
-      vibrant: string;
-    };
-    accent2?: {
-      dim: string;
-      vibrant: string;
-    };
-    boxShadow?: {
-      light: string;
-      medium: string;
-      dark: string;
-    };
+    accent1?: { dim: string; vibrant: string }
+    accent2?: { dim: string; vibrant: string }
+    boxShadow?: { light: string; medium: string; dark: string }
+    colors?: typeof baseColors
   }
 }
 
-
-
-// Factory functions
+// ✅ Theme factory
 export const getTheme = (mode: "light" | "dark" | "custom") => {
-  if (mode === "custom") {
-    // Return a custom theme here or fallback
-    return createTheme(
-      deepmerge(commonTheme, lightTheme) // Or define a customTheme object
-    );
-  }
-  return createTheme(
-    deepmerge(commonTheme, mode === "light" ? lightTheme : darkTheme)
-  );
-};
+  const base = mode === "light" ? lightTheme : mode === "dark" ? darkTheme : lightTheme
 
+  return createTheme(
+    deepmerge(commonTheme, {
+      ...base,
+      palette: {
+        ...base.palette,
+        colors: baseColors, // inject full palette set
+      },
+    })
+  )
+}

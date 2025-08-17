@@ -16,7 +16,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import ErrorPage from "./pages/ErrorPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import AcceptInvite from "./pages/AcceptInvite";
-import DatastoreDashboard from "./pages/DatasetDashboard";
+import DatastoreDashboard from "./pages/DatastoreDashboard";
 import DatasetDashboard from "./pages/DatasetDashboard";
 
 // ─────────────────────────────────────────
@@ -157,6 +157,18 @@ const router = createBrowserRouter([
             path: "dataset",
             id: "dataset",
             element: <DatasetDashboard />,
+            loader: async () => {
+              const token = getToken();
+              const user = token ? decodeToken(token) : null;
+              return { user };
+            },
+            action: async () => null,
+            errorElement: <ErrorPage />,
+          },
+          {
+            path: "datastore",
+            id: "datastore",
+            element: <DatastoreDashboard />,
             loader: async () => {
               const token = getToken();
               const user = token ? decodeToken(token) : null;

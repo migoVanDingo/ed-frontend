@@ -12,8 +12,11 @@ interface HeadingBlockProps {
   color?: string
   subColor?: string
   headingWeight?: number
+  subWeight?: number
   headingSize?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "body1" | "body2"
   subSize?: "body1" | "body2" | "caption"
+  headingStyle?: object
+  subheadingStyle?: object
 }
 
 const HeadingBlock: React.FC<HeadingBlockProps> = ({
@@ -27,6 +30,9 @@ const HeadingBlock: React.FC<HeadingBlockProps> = ({
   headingWeight = 600,
   headingSize = "h6",
   subSize = "body2",
+  subWeight = 200,
+  headingStyle,
+  subheadingStyle,
 }) => {
   const theme = useTheme()
 
@@ -44,6 +50,7 @@ const HeadingBlock: React.FC<HeadingBlockProps> = ({
         sx={{
           fontWeight: headingWeight,
           color: color || theme.palette.text.primary,
+          ...headingStyle,
         }}
       >
         {heading}
@@ -53,6 +60,8 @@ const HeadingBlock: React.FC<HeadingBlockProps> = ({
           variant={subSize}
           sx={{
             color: subColor || theme.palette.text.secondary,
+            ...subheadingStyle,
+            fontWeight: subWeight,
           }}
         >
           {subheading}

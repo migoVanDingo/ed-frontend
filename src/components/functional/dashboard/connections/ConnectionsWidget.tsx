@@ -30,7 +30,7 @@ const ConnectionsWidget = () => {
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["transparent"]}
+      bgColor="transparent"
       noShadow
       noBorder
       expand

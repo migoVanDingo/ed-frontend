@@ -77,7 +77,7 @@ const ProjectList = () => {
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["transparent"]}
+      bgColor="transparent"
       paddingSize="md"
       marginSize="sm"
       noShadow

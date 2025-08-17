@@ -52,7 +52,7 @@ const DataOverview: React.FC<DataOverviewProps> = ({
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["transparent"]}
+      bgColor="transparent"
       noShadow
       noBorder
       sx={{

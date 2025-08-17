@@ -3,12 +3,36 @@ import Grid from "@mui/material/Grid"
 import { useTheme } from "@emotion/react"
 import ProjectList from "../components/functional/dashboard/ProjectList"
 import LLMWidget from "../components/functional/dashboard/llm-widget/LLMWidget"
-import DatastoreOverview from "../components/functional/dashboard/datastore-widget/DatastoreOverview"
-import DatasetOverview from "../components/functional/dashboard/dataset-widget/DatasetOverview"
-import RecentActivity from "../components/functional/dashboard/recent-activity-widget/RecentActivity"
-import ConnectionsWidget from "../components/functional/dashboard/connections-widget/ConnectionsWidget"
+import DatastoreOverview from "../components/functional/dashboard/datastore/DatastoreOverview"
+import DatasetOverview from "../components/functional/dashboard/dataset/DatasetOverview"
+import RecentActivity from "../components/functional/dashboard/recent-activity/RecentActivity"
+import ConnectionsWidget from "../components/functional/dashboard/connections/ConnectionsWidget"
 import type { Theme } from "@mui/material"
 
+
+const activities = [
+  {
+      user: "Alice",
+      action: "uploaded to",
+      entity: "Datastore",
+      type: "datastore",
+      date: "2025-08-12T10:00:00Z",
+    },
+    {
+      user: "Bob",
+      action: "ran pipeline in",
+      entity: "Climate Project",
+      type: "project",
+      date: "2025-08-15T01:00:00Z",
+    },
+    {
+      user: "Eve",
+      action: "created dataset",
+      entity: "Brain Imaging",
+      type: "dataset",
+      date: "2025-08-14T18:30:00Z",
+    },
+]
 const DashboardPage = () => {
   const theme = useTheme()
   return (
@@ -69,7 +93,7 @@ const DashboardPage = () => {
         sx={{ display: "flex", flexDirection: "column", gap: 1 }}
       >
         <LLMWidget />
-        <RecentActivity />
+        <RecentActivity activities={activities} />
         <ConnectionsWidget />
       </Grid>
     </Grid>

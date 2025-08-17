@@ -1,9 +1,57 @@
 import React from "react"
 import { Box, useTheme } from "@mui/material"
-import FileExplorerWidget from "../components/functional/dashboard/datastore-widget/FileExplorerWidget"
+import FileExplorerWidget from "../components/functional/dashboard/datastore/FileExplorerWidget"
+import UsageHealthWidget from "../components/functional/dashboard/datastore/UsageHealthWidget"
+import RecentActivity from "../components/functional/dashboard/recent-activity/RecentActivity"
+import ContributorsWidget from "../components/functional/dashboard/datastore/ContributorsWidget"
 // import RecentActivityWidget from ...
 // import UsageHealthWidget from ...
 // import CollaboratorsWidget from ...
+
+const activities = [
+    {
+      user: "Alice",
+      action: "uploaded to",
+      entity: "Datastore",
+      type: "datastore",
+      date: "2025-08-12T10:00:00Z",
+    },
+    {
+      user: "Bob",
+      action: "ran pipeline in",
+      entity: "Climate Project",
+      type: "project",
+      date: "2025-08-15T01:00:00Z",
+    },
+    {
+      user: "Eve",
+      action: "created dataset",
+      entity: "Brain Imaging",
+      type: "dataset",
+      date: "2025-08-14T18:30:00Z",
+    },
+    {
+      user: "Alice",
+      action: "uploaded to",
+      entity: "Datastore",
+      type: "datastore",
+      date: "2025-08-12T10:00:00Z",
+    },
+    {
+      user: "Bob",
+      action: "ran pipeline in",
+      entity: "Climate Project",
+      type: "project",
+      date: "2025-08-15T01:00:00Z",
+    },
+    {
+      user: "Eve",
+      action: "created dataset",
+      entity: "Brain Imaging",
+      type: "dataset",
+      date: "2025-08-14T18:30:00Z",
+    },
+  ]
 
 const DatastoreDashboard = () => {
   const theme = useTheme()
@@ -29,7 +77,7 @@ const DatastoreDashboard = () => {
 
         // Tablet / desktop layout (md and up)
         [theme.breakpoints.up("md")]: {
-          gridTemplateColumns: "3fr 1fr", // 3/4 + 1/4
+          gridTemplateColumns: "2fr 1fr", // 3/4 + 1/4
           gridTemplateRows: "1fr 1fr",   // two rows
           gridTemplateAreas: `
             "fileExplorer recentActivity"
@@ -44,16 +92,16 @@ const DatastoreDashboard = () => {
       </Box>
 
       <Box gridArea="recentActivity">
-        {/* <RecentActivityWidget /> */}
+        <RecentActivity activities={activities}/>
       </Box>
 
       {/* Row 2 */}
       <Box gridArea="usageHealth">
-        {/* <UsageHealthWidget /> */}
+        <UsageHealthWidget />
       </Box>
 
       <Box gridArea="collaborators">
-        {/* <CollaboratorsWidget /> */}
+        <ContributorsWidget />
       </Box>
     </Box>
   )

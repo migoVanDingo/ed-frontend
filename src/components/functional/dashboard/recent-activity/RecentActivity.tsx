@@ -11,32 +11,8 @@ import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
 import { SStack } from "../../../styled/SStack"
 import { getChipStyles } from "../../../../utility/styling/getChipStyles"
 
-const RecentActivity = () => {
+const RecentActivity = ({ activities}: any) => {
   const theme = useTheme()
-
-  const activities = [
-    {
-      user: "Alice",
-      action: "uploaded to",
-      entity: "Datastore",
-      type: "datastore",
-      date: "2025-08-12T10:00:00Z",
-    },
-    {
-      user: "Bob",
-      action: "ran pipeline in",
-      entity: "Climate Project",
-      type: "project",
-      date: "2025-08-15T01:00:00Z",
-    },
-    {
-      user: "Eve",
-      action: "created dataset",
-      entity: "Brain Imaging",
-      type: "dataset",
-      date: "2025-08-14T18:30:00Z",
-    },
-  ]
 
   // map type -> chip colors
   
@@ -46,11 +22,12 @@ const RecentActivity = () => {
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["transparent"]}
+      bgColor="transparent"
       noBorder
       noShadow
-      sx={{ flexShrink: 0 }}
+      sx={{ flexShrink: 0, height: '100%'}}
       expand
+
     >
       <Card
         sx={{
@@ -72,7 +49,7 @@ const RecentActivity = () => {
           />
 
           <Stack spacing={1.5} sx={{ mt: 1 }}>
-            {activities.map((a, idx) => {
+            {activities.map((a: any, idx: number) => {
               const chipProps = getChipStyles(theme, a.type)
               return (
                 <Stack

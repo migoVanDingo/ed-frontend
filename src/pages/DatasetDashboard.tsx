@@ -3,9 +3,9 @@ import Grid from "@mui/material/Grid"
 import { useTheme, type Theme } from "@mui/material/styles"
 
 // Import datastore modules (we'll implement them next)
-import DatastoreOverview from "../components/functional/dashboard/datastore-widget/DatastoreOverview"
-import DatasetInsights from "../components/functional/dashboard/dataset-widget/DatasetInsights"
-import DatasetList from "../components/functional/dashboard/dataset-widget/DatasetList"
+import DatastoreOverview from "../components/functional/dashboard/datastore/DatastoreOverview"
+import DatasetInsights from "../components/functional/dashboard/dataset/DatasetInsights"
+import DatasetList from "../components/functional/dashboard/dataset/DatasetList"
 
 const DatasetDashboard = () => {
   const theme = useTheme()

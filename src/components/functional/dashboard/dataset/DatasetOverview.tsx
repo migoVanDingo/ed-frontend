@@ -43,7 +43,7 @@ const DatasetOverview = () => {
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["transparent"]}
+      bgColor="transparent"
       noBorder
       noShadow
       sx={{

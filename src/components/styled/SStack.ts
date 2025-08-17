@@ -6,7 +6,7 @@ interface CustomStackProps extends StackProps {
   height?: string | number;
   width?: number;
   radius?: keyof Theme["custom"]["radii"];
-  bgColor?: string[];
+  bgColor?: string;
   paddingSize?: keyof Theme["custom"]["spacing"];
   marginSize?: keyof Theme["custom"]["spacing"];
   expand?: boolean;
@@ -39,11 +39,9 @@ export const SStack = styled(Stack, {
       : theme.palette.mode === "dark"
         ? theme.palette.boxShadow.light
         : theme.palette.boxShadow.light,
-    backgroundColor: bgColor && bgColor[0] === 'transparent'
+    backgroundColor: bgColor === 'transparent'
       ? 'transparent'
-      : bgColor && theme.palette[bgColor[0] as keyof typeof theme.palette]
-        ? (theme.palette[bgColor[0] as keyof typeof theme.palette] as any)?.[bgColor[1]]
-        : theme.palette.background.paper,
+      : bgColor || theme.palette.background.paper,
     padding: paddingSize ? theme.custom.spacing[paddingSize] : undefined,
     margin: marginSize ? theme.custom.spacing[marginSize] : undefined,
     ...(expand && {

@@ -63,10 +63,10 @@ const DatasetInsights: React.FC<DatasetInsightsProps> = ({
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["transparent"]}
-      noShadow
+      bgColor="transparent"
       noBorder
-      sx={{ flex: 2, flexShrink: 0 }}
+      height={'100%'}
+      sx={{ flex: 1, flexShrink: 0, height: '100%' }}
     >
       <Card
         sx={{
@@ -92,7 +92,7 @@ const DatasetInsights: React.FC<DatasetInsightsProps> = ({
           )}
 
           {/* Chart */}
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart
               data={datasetData}
               margin={{ top: 10, right: 10, left: 0, bottom: 30 }} // tighter margins

@@ -173,8 +173,9 @@ const FileExplorerWidget = () => {
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["transparent"]}
-      padding="sm"
+      bgColor={theme.palette.background.default}
+
+      height="100%"
       sx={{
         flexGrow: 1,
         width: "100%",
@@ -186,10 +187,10 @@ const FileExplorerWidget = () => {
         direction="row"
         alignItems="center"
         justifyContent="space-between"
-        sx={{ px: theme.custom.spacing.sm, pt: theme.custom.spacing.sm }}
+        sx={{ px: theme.custom.spacing.xs, pt: theme.custom.spacing.xs }}
       >
         <HeadingBlock
-          heading="Files"
+          heading="Datastore Dashboard"
           headingSize="h5"
           headingWeight={theme.custom.font.weight.regular}
           subheading="Quick file management. View file explorer for more options."

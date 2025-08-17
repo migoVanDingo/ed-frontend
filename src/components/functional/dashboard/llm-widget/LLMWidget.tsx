@@ -21,7 +21,7 @@ const LlmWidget = () => {
       direction="column"
       spacing={2}
       radius="lg"
-      bgColor={["transparent"]}
+      bgColor="transparent"
       noBorder
       noShadow
       sx={{ flexShrink: 0 }}

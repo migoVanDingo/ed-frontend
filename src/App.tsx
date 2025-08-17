@@ -16,6 +16,8 @@ import NotFoundPage from "./pages/NotFoundPage";
 import ErrorPage from "./pages/ErrorPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import AcceptInvite from "./pages/AcceptInvite";
+import DatastoreDashboard from "./pages/DatasetDashboard";
+import DatasetDashboard from "./pages/DatasetDashboard";
 
 // ─────────────────────────────────────────
 // Auth middleware helpers (utils/auth.ts)
@@ -143,6 +145,18 @@ const router = createBrowserRouter([
             index: true,
             id: "dashboard",
             element: <DashboardPage />,
+            loader: async () => {
+              const token = getToken();
+              const user = token ? decodeToken(token) : null;
+              return { user };
+            },
+            action: async () => null,
+            errorElement: <ErrorPage />,
+          },
+          {
+            path: "dataset",
+            id: "dataset",
+            element: <DatasetDashboard />,
             loader: async () => {
               const token = getToken();
               const user = token ? decodeToken(token) : null;

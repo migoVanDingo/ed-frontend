@@ -12,7 +12,25 @@ import ShareIcon from "@mui/icons-material/Share"
 import HeadingBlock from "../../../common/HeadingBlock"
 import { SStack } from "../../../styled/SStack"
 
-const DataOverview = () => {
+// Type for buttons
+type ActionButton = {
+  label: string
+  variant?: "text" | "outlined" | "contained"
+  color?: "primary" | "secondary" | "inherit"
+  onClick?: () => void
+  fullWidth?: boolean
+  style: object
+}
+
+interface DataOverviewProps {
+  title?: string
+  actionButtons?: ActionButton[]
+}
+
+const DataOverview: React.FC<DataOverviewProps> = ({
+  title = "Datastore Overview",
+  actionButtons = [],
+}) => {
   const theme = useTheme()
 
   const totalStorage = 10 // GB
@@ -38,8 +56,8 @@ const DataOverview = () => {
       noShadow
       noBorder
       sx={{
-        flex: 3,
-        flexShrink: 0 
+        flex: 2,
+        flexShrink: 0,
       }}
     >
       <Card
@@ -55,11 +73,12 @@ const DataOverview = () => {
       >
         <CardContent>
           <HeadingBlock
-            heading={"Datastore Overview"}
+            heading={title}
             headingSize="h6"
             headingWeight={theme.custom.font.weight.regular}
             padding={0}
           />
+
           {/* Storage usage */}
           <Typography variant="subtitle1" gutterBottom>
             Storage Usage
@@ -76,10 +95,10 @@ const DataOverview = () => {
               borderRadius: 5,
               mb: 2,
               "& .MuiLinearProgress-bar": {
-                backgroundColor: theme.palette.accent1.vibrant, // used storage
+                backgroundColor: theme.palette.accent1.vibrant,
               },
               "&.MuiLinearProgress-root": {
-                backgroundColor: theme.palette.primary.main, // track background
+                backgroundColor: theme.palette.primary.main,
               },
             }}
           />
@@ -123,36 +142,22 @@ const DataOverview = () => {
           </Stack>
 
           {/* Actions */}
-          <Stack direction="row" spacing={2}>
-            <Button
-              fullWidth
-              variant="contained"
-              sx={{
-                color: theme.palette.getContrastText(
-                  theme.palette.accent1.vibrant
-                ),
-                borderRadius: theme.custom?.radii?.xs,
-                fontSize: theme.custom.font.size.sm,
-                backgroundColor: theme.palette.accent1.vibrant,
-                "&:hover": { backgroundColor: theme.palette.accent1.dim },
-              }}
-            >
-              View Datastore
-            </Button>
-            <Button
-              fullWidth
-              variant="outlined"
-              sx={{
-                borderRadius: theme.custom?.radii?.xs,
-                fontSize: theme.custom.font.size.sm,
-                color: theme.palette.accent1.vibrant,
-                borderColor: theme.palette.accent1.vibrant,
-                "&:hover": { backgroundColor: theme.palette.accent1.dim },
-              }}
-            >
-              Settings
-            </Button>
-          </Stack>
+          {actionButtons.length > 0 && (
+            <Stack direction="row" spacing={2}>
+              {actionButtons.map((btn, i) => (
+                <Button
+                  key={i}
+                  variant={btn.variant || "contained"}
+                  color={btn.color || "primary"}
+                  fullWidth={btn.fullWidth ?? true}
+                  onClick={btn.onClick}
+                  sx={btn.style || {}}
+                >
+                  {btn.label}
+                </Button>
+              ))}
+            </Stack>
+          )}
         </CardContent>
       </Card>
     </SStack>

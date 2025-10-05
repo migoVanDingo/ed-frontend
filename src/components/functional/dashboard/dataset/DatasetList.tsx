@@ -1,127 +1,201 @@
-import React from "react"
-import { Box, Button, Chip, Stack } from "@mui/material"
-import { useTheme, type Theme } from "@mui/material/styles"
+import React, { useState } from "react"
+import Card from "@mui/material/Card"
+import CardContent from "@mui/material/CardContent"
+import Chip from "@mui/material/Chip"
+import IconButton from "@mui/material/IconButton"
+import Menu from "@mui/material/Menu"
+import MenuItem from "@mui/material/MenuItem"
+import Link from "@mui/material/Link"
+import { useTheme } from "@mui/material/styles"
 import { DataGrid, type GridColDef } from "@mui/x-data-grid"
 import HeadingBlock from "../../../common/HeadingBlock"
 import { SStack } from "../../../styled/SStack"
+import StarIcon from "@mui/icons-material/Star"
+import MoreVertIcon from "@mui/icons-material/MoreVert"
 import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
 
-interface Project {
+interface Dataset {
   id: string
   name: string
-  tags?: string[]
-  updated_at: string // ISO
+  type: string[]
+  updated_at: string
+  status: "active" | "archived" | "error"
+  stars: number
+  owner: string
 }
 
-interface ProjectExplorerWidgetProps {
-  projects?: Project[]
-  onSelectProject?: (project: Project) => void
+interface DatasetListProps {
+  datasets?: Dataset[]
+  onRowClick?: (dataset: Dataset) => void
 }
 
-const defaultProjects: Project[] = [
-  { id: "p1", name: "Customer Churn Analysis", tags: ["ETL", "Regression", "Prod"], updated_at: "2025-08-12T10:15:00Z" },
-  { id: "p2", name: "Product Image Classifier", tags: ["Vision", "Training"], updated_at: "2025-08-15T18:45:00Z" },
-  { id: "p3", name: "Event Log Ingestion", tags: ["Ingest", "Streaming", "Kafka"], updated_at: "2025-08-14T07:30:00Z" },
-  { id: "p4", name: "Documentation Search", tags: ["NLP", "Embeddings"], updated_at: "2025-08-10T12:05:00Z" },
-  { id: "p5", name: "Pricing Experiments", tags: ["AB-Testing", "Experimental"], updated_at: "2025-08-09T22:00:00Z" },
-]
-
-const ProjectExplorerWidget: React.FC<ProjectExplorerWidgetProps> = ({
-  projects = defaultProjects,
-  onSelectProject,
+const DatasetList: React.FC<DatasetListProps> = ({
+  datasets = [
+    {
+      id: "1",
+      name: "Customer Records",
+      type: ["CSV", "JSON"],
+      updated_at: "2025-08-10T14:22:00Z",
+      status: "active",
+      stars: 48,
+      owner: "Alice Johnson",
+    },
+    {
+      id: "2",
+      name: "Event Logs",
+      type: ["JSON"],
+      updated_at: "2025-08-12T09:10:00Z",
+      status: "active",
+      stars: 20,
+      owner: "Bob Smith",
+    },
+    {
+      id: "3",
+      name: "Product Images",
+      type: ["Images"],
+      updated_at: "2025-08-14T17:45:00Z",
+      status: "archived",
+      stars: 12,
+      owner: "Charlie Davis",
+    },
+  ],
+  onRowClick,
 }) => {
   const theme = useTheme()
 
-  // Ensure tags is always an array
-  const rows: Project[] = (projects ?? []).map((p) => ({
-    ...p,
-    tags: Array.isArray(p.tags) ? p.tags : [],
-  }))
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [menuRowId, setMenuRowId] = useState<string | null>(null)
 
-  const tagColors: Record<string, string> = {
-    ETL: theme.palette.colors.blue[500],
-    Regression: theme.palette.colors.purple[500],
-    Prod: theme.palette.colors.green[600],
-    Vision: theme.palette.colors.orange[500],
-    Training: theme.palette.colors.red[400],
-    Ingest: theme.palette.colors.teal?.[500] ?? theme.palette.colors.green[500],
-    Streaming: theme.palette.colors.indigo?.[400] ?? theme.palette.colors.blue[400],
-    Kafka: theme.palette.colors.brown?.[400] ?? theme.palette.grey[600],
-    NLP: theme.palette.colors.pink?.[400] ?? theme.palette.colors.purple[400],
-    Embeddings: theme.palette.colors.cyan?.[500] ?? theme.palette.colors.blue[300],
-    "AB-Testing": theme.palette.colors.amber?.[500] ?? theme.palette.colors.orange[400],
-    Experimental: theme.palette.colors.grey[600],
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    rowId: string
+  ) => {
+    setAnchorEl(event.currentTarget)
+    setMenuRowId(rowId)
   }
 
-  const columns: GridColDef<Project>[] = [
-    { field: "name", headerName: "Name", flex: 1, minWidth: 180 },
+  const handleMenuClose = () => {
+    setAnchorEl(null)
+    setMenuRowId(null)
+  }
 
+  const chipColors: Record<string, string> = {
+    CSV: theme.palette.colors.blue[500],
+    JSON: theme.palette.colors.green[500],
+    Images: theme.palette.colors.orange[500],
+  }
+
+  const columns: GridColDef[] = [
     {
-      field: "tags",
-      headerName: "Tags",
+      field: "name",
+      headerName: "Name",
       flex: 1,
       minWidth: 180,
-      renderCell: (params) => {
-        const tags: string[] = Array.isArray(params.row?.tags) ? params.row.tags! : []
-        return (
-          <Box
-            title={tags.join(", ")}
-            sx={{
-              display: "flex",
-              gap: 0.5,
-              alignItems: "center",
-              flexWrap: "nowrap",
-              overflow: "hidden",
-              width: "100%",
-              WebkitMaskImage: "linear-gradient(to right, black 85%, transparent)",
-              maskImage: "linear-gradient(to right, black 85%, transparent)",
-            }}
-          >
-            {tags.map((t) => (
-              <Chip
-                key={t}
-                label={t}
-                size="small"
-                sx={{
-                  flex: "0 0 auto",
-                  backgroundColor: tagColors[t] || theme.palette.grey[400],
-                  color: theme.palette.common.white,
-                  fontSize: theme.custom.font.size.sm,
-                  fontWeight: theme.custom.font.weight.bold,
-                  height: 24,
-                  whiteSpace: "nowrap",
-                }}
-              />
-            ))}
-          </Box>
-        )
-      },
-      // enable built-in filtering on tags via string contains
-      filterable: true,
-      type: "string",
-      valueGetter: (params: any) =>
-        Array.isArray(params.row?.tags) ? params.row.tags!.join(" ") : "",
+      renderCell: (params: any) => (
+        <Link
+          href={`/datasets/${params.row.id}`}
+          underline="hover"
+          sx={{
+            color: theme.palette.accent1.vibrant,
+            fontWeight: theme.custom.font.weight.medium,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {params.value}
+        </Link>
+      ),
     },
-
+    {
+      field: "type",
+      headerName: "Type",
+      width: 200,
+      renderCell: (params: any) => (
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {params.value.map((t: string, i: number) => (
+            <Chip
+              key={i}
+              label={t}
+              size="small"
+              sx={{
+                backgroundColor: chipColors[t] || theme.palette.grey[300],
+                color: theme.palette.primary.light,
+                fontSize: theme.custom.font.size.sm,
+                fontWeight: theme.custom.font.weight.bold,
+                height: 30,
+              }}
+            />
+          ))}
+        </div>
+      ),
+    },
+    {
+      field: "owner",
+      headerName: "Owner",
+      width: 160,
+      renderCell: (params: any) => (
+        <span
+          style={{
+            fontSize: theme.custom.font.size.md,
+            color: theme.palette.text.primary,
+            fontWeight: theme.custom.font.weight.regular,
+          }}
+        >
+          {params.value}
+        </span>
+      ),
+    },
     {
       field: "updated_at",
       headerName: "Last Updated",
-      width: 160,
-      type: "date", // lets the built-in Filter panel use date operators
-      valueGetter: (params: any) => {
-        const iso = params.row?.updated_at
-        const d = iso ? new Date(iso) : null
-        return d && !isNaN(d.getTime()) ? d : null
-      },
-      renderCell: (params) => (
+      width: 150,
+      renderCell: (params: any) => (
         <span
           style={{
+            fontSize: theme.custom.font.size.md,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          {formatRelativeTime(params.value)}
+        </span>
+      ),
+    },
+    {
+      field: "stars",
+      headerName: "Notoriety",
+      width: 140,
+      renderCell: (params: any) => (
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
             fontSize: theme.custom.font.size.sm,
             color: theme.palette.text.secondary,
           }}
         >
-          {formatRelativeTime(params.row?.updated_at)}
+          <StarIcon
+            fontSize="small"
+            sx={{ color: theme.palette.colors.yellow[600] }}
+          />
+          x{params.value}
         </span>
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 70,
+      sortable: false,
+      renderCell: (params: any) => (
+        <IconButton
+          size="small"
+          onClick={(e) => handleMenuOpen(e, params.row.id)}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
       ),
     },
   ]
@@ -132,112 +206,101 @@ const ProjectExplorerWidget: React.FC<ProjectExplorerWidgetProps> = ({
       spacing={2}
       radius="lg"
       bgColor="transparent"
-      padding="sm"
-      sx={{ flexGrow: 1, width: "100%", minHeight: 0 }}
+      noShadow
+      noBorder
+      sx={{ flex: 6, flexShrink: 0 }}
     >
-      <HeadingBlock
-        heading="Project Explorer"
-        headingSize="h5"
-        headingWeight={theme.custom.font.weight.regular}
-        subheading="Use the grid to search and select the project you want to work on."
-        padding={0}
-      />
-
-      <Box sx={{ flex: 1, minHeight: 0 }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          getRowId={(r) => r.id}
-          pageSizeOptions={[5, 10]}
-          initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
-          disableRowSelectionOnClick
-          onRowClick={(params) => onSelectProject?.(params.row)}
-
-          // 🔹 Match your DatasetList: built-in toolbar with Quick Filter
-          showToolbar
-          slotProps={{
-            toolbar: {
-              showQuickFilter: true,
-              quickFilterProps: { debounceMs: 300 },
-            },
-          }}
-
-          sx={{
-            border: "none",
-            boxShadow: "none",
-            backgroundColor: "transparent",
-            "& .MuiDataGrid-main": { backgroundColor: "transparent" },
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "transparent",
-              fontWeight: theme.custom.font.weight.bold,
-              color: theme.palette.text.primary,
-              fontSize: theme.custom.font.size.md,
-            },
-            "& .MuiDataGrid-cell": {
-              display: "flex",
-              alignItems: "center",
-              overflow: "hidden",
-              borderBottom: `1px solid ${theme.palette.divider}`,
-            },
-            "& .MuiDataGrid-row:hover": {
-              backgroundColor: theme.palette.action.hover,
-              cursor: "pointer",
-            },
-            "& .MuiDataGrid-row:nth-of-type(even)": {
-              backgroundColor:
-                theme.palette.mode === "dark"
-                  ? theme.palette.grey[900]
-                  : theme.palette.grey[50],
-            },
-            "& .MuiDataGrid-toolbarContainer": {
-              p: theme.custom.spacing.xs,
-              backgroundColor: theme.palette.background.paper,
-              borderBottom: `1px solid ${theme.palette.divider}`,
-            },
-          }}
-        />
-      </Box>
-
-      {/* Bottom Actions */}
-      <Stack
-        direction="row"
-        justifyContent="flex-end"
-        spacing={1}
+      <Card
         sx={{
-          p: theme.custom.spacing.xs,
-          borderTop: `1px solid ${theme.palette.divider}`,
+          borderRadius: theme.custom?.radii?.xs,
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          boxShadow: "none",
+          border: "none",
           backgroundColor: theme.palette.background.paper,
         }}
       >
-        <Button
-          variant="contained"
-          size="small"
-          sx={(t: Theme) => ({
-            color: t.palette.getContrastText(t.palette.accent1.vibrant),
-            borderRadius: t.custom?.radii?.xs,
-            fontSize: t.custom.font.size.sm,
-            backgroundColor: t.palette.accent1.vibrant,
-            "&:hover": { backgroundColor: t.palette.accent1.dim },
-          })}
+        <CardContent
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "none",
+            border: "none",
+            backgroundColor: theme.palette.background.paper,
+          }}
         >
-          New Project
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          sx={(t: Theme) => ({
-            borderRadius: t.custom?.radii?.xs,
-            fontSize: t.custom.font.size.sm,
-            color: t.palette.accent1.vibrant,
-            borderColor: t.palette.accent1.vibrant,
-            "&:hover": { backgroundColor: t.palette.accent1.dim },
-          })}
-        >
-          View All
-        </Button>
-      </Stack>
+          <HeadingBlock
+            heading="Datasets"
+            headingSize="h4"
+            subheading="View and manage your datasets. Click on the row to view its specific details in the insights widget or click the dataset name to explore its contents."
+            headingWeight={theme.custom.font.weight.regular}
+            padding={0}
+          />
+
+          <div style={{ flex: 1, marginTop: theme.custom.spacing.xs }}>
+            <DataGrid
+              rows={datasets}
+              columns={columns}
+              pageSizeOptions={[5, 10]}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 5 } },
+              }}
+              disableRowSelectionOnClick
+              getRowId={(row) => row.id}
+              showToolbar
+              slotProps={{
+                toolbar: {
+                  showQuickFilter: true,
+                  quickFilterProps: { debounceMs: 300 },
+                },
+              }}
+              sx={{
+                border: "none",
+                boxShadow: "none",
+                backgroundColor: "transparent", // ✅ kills DataGrid’s default bg
+                "& .MuiDataGrid-main": {
+                  backgroundColor: "transparent", // ✅ nukes nested wrapper bg
+                },
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: "transparent", // ✅ headers transparent
+                  fontWeight: theme.custom.font.weight.bold,
+                  color: theme.palette.text.primary,
+                  fontSize: theme.custom.font.size.md,
+                },
+                "& .MuiDataGrid-cell": {
+                  display: "flex",
+                  alignItems: "center",
+                  borderBottom: `1px solid ${theme.palette.divider}`,
+                },
+                "& .MuiDataGrid-row:hover": {
+                  backgroundColor: theme.palette.action.hover,
+                  cursor: "pointer",
+                },
+                "& .MuiDataGrid-row:nth-of-type(even)": {
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? theme.palette.grey[900]
+                      : theme.palette.grey[50],
+                },
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleMenuClose}>View</MenuItem>
+        <MenuItem onClick={handleMenuClose}>Edit</MenuItem>
+        <MenuItem onClick={handleMenuClose}>Delete</MenuItem>
+      </Menu>
     </SStack>
   )
 }
 
-export default ProjectExplorerWidget
+export default DatasetList

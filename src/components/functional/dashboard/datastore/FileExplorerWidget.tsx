@@ -11,14 +11,19 @@ import {
 } from "@mui/material"
 import { useTheme, type Theme } from "@mui/material/styles"
 import MoreVertIcon from "@mui/icons-material/MoreVert"
+import CloudUploadIcon from "@mui/icons-material/CloudUpload"
 import HeadingBlock from "../../../common/HeadingBlock"
 import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
 import { SStack } from "../../../styled/SStack"
 
+// ⬇️ import the modal component you have in your codebase
+import UploadFilesModal from "../../../common/modal/UploadFilesModal"
+// ^ adjust the relative path to wherever you saved the modal
+
 interface FileItem {
   id: string
   name: string
-  directory: string   // ✅ new field
+  directory: string
   size: number
   type: string
   uploadedAt: string | Date
@@ -28,30 +33,28 @@ const mockFiles: FileItem[] = [
   {
     id: "1",
     name: "data.csv",
-    directory: "/datasets/raw",  // ✅ added
-    size: 1250000,
+    directory: "/datasets/raw",
+    size: 1_250_000,
     type: "CSV",
     uploadedAt: "2025-08-10T14:22:00Z",
   },
   {
     id: "2",
     name: "annotations.json",
-    directory: "/datasets/annotations", // ✅ added
-    size: 258000,
+    directory: "/datasets/annotations",
+    size: 258_000,
     type: "JSON",
     uploadedAt: "2025-08-01T14:22:00Z",
   },
   {
     id: "3",
     name: "video.mp4",
-    directory: "/datasets/media", // ✅ added
-    size: 50250000,
+    directory: "/datasets/media",
+    size: 50_250_000,
     type: "MP4",
     uploadedAt: "2025-08-15T10:00:00Z",
   },
 ]
-
-
 
 const FileExplorerWidget = () => {
   const theme = useTheme()
@@ -60,6 +63,9 @@ const FileExplorerWidget = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
 
+  // ⬇️ upload modal state
+  const [openUpload, setOpenUpload] = useState(false)
+
   const handleMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
     rowId: string
@@ -67,10 +73,43 @@ const FileExplorerWidget = () => {
     setAnchorEl(event.currentTarget)
     setMenuRowId(rowId)
   }
-
   const handleMenuClose = () => {
     setAnchorEl(null)
     setMenuRowId(null)
+  }
+
+  const handleOpenUpload = () => setOpenUpload(true)
+  const handleCloseUpload = () => setOpenUpload(false)
+
+  // ⬇️ Replace with your real upload endpoint
+  const handleUpload = async ({
+    files,
+    tags,
+  }: {
+    files: File[]
+    tags: string[]
+  }) => {
+    const form = new FormData()
+    files.forEach((f) => form.append("files", f))
+    tags.forEach((t) => form.append("tags", t))
+
+    console.log("files: ", files)
+    console.log("tags: ", tags)
+    /*
+    // Example POST — swap URL and add auth headers as needed
+    const res = await fetch("/api/datastore/upload", {
+      method: "POST",
+      body: form,
+      // headers: { Authorization: `Bearer ${token}` } // if needed
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      throw new Error(text || "Upload failed")
+    } */
+
+    // Optionally refresh your grid data here
+    // await refetchFiles()
   }
 
   const chipColors: Record<string, string> = {
@@ -79,94 +118,89 @@ const FileExplorerWidget = () => {
     Images: theme.palette.colors.orange[500],
     MP4: theme.palette.colors.red[500],
     MP3: theme.palette.colors.purple[500],
+    PDF: theme.palette.colors.red[500],
   }
 
   const columns: GridColDef<FileItem>[] = [
-  {
-    field: "name",
-    headerName: "Name",
-    flex: 1,
-    minWidth: 180,
-  },
-  {
-    field: "directory",   // ✅ new column
-    headerName: "Directory",
-    flex: 1,
-
-    renderCell: (params) => (
-      <span
-        style={{
-          fontSize: theme.custom.font.size.sm,
-          color: theme.palette.text.secondary,
-        }}
-      >
-        {params.value}
-      </span>
-    ),
-  },
-  {
-    field: "size",
-    headerName: "Size",
-    width: 120,
-    renderCell: (params) => {
-      const size = params.row.size
-      if (!size) return "—"
-      if (size >= 1_000_000) return `${(size / 1_000_000).toFixed(1)} MB`
-      if (size >= 1_000) return `${(size / 1_000).toFixed(1)} KB`
-      return `${size} B`
-    },
-  },
-  {
-    field: "type",
-    headerName: "File Type",
-    width: 160,
-    renderCell: (params) => {
-      const type = params.row.type
-      return (
-        <Chip
-          label={type}
-          size="small"
-          sx={{
-            backgroundColor: chipColors[type] || theme.palette.grey[400],
-            color: theme.palette.primary.light,
+    { field: "name", headerName: "Name", flex: 1, minWidth: 180 },
+    {
+      field: "directory",
+      headerName: "Directory",
+      flex: 1,
+      renderCell: (params) => (
+        <span
+          style={{
             fontSize: theme.custom.font.size.sm,
-            fontWeight: theme.custom.font.weight.bold,
-            height: 26,
+            color: theme.palette.text.secondary,
           }}
-        />
-      )
+        >
+          {params.value}
+        </span>
+      ),
     },
-  },
-  {
-    field: "uploadedAt",
-    headerName: "Uploaded",
-    width: 160,
-    renderCell: (params) => (
-      <span
-        style={{
-          fontSize: theme.custom.font.size.sm,
-          color: theme.palette.text.secondary,
-        }}
-      >
-        {formatRelativeTime(params.value)}
-      </span>
-    ),
-  },
-  {
-    field: "actions",
-    headerName: "Actions",
-    width: 80,
-    sortable: false,
-    renderCell: (params) => (
-      <IconButton
-        size="small"
-        onClick={(e) => handleMenuOpen(e, params.row.id)}
-      >
-        <MoreVertIcon fontSize="small" />
-      </IconButton>
-    ),
-  },
-]
+    {
+      field: "size",
+      headerName: "Size",
+      width: 120,
+      renderCell: (params) => {
+        const size = params.row.size
+        if (!size) return "—"
+        if (size >= 1_000_000) return `${(size / 1_000_000).toFixed(1)} MB`
+        if (size >= 1_000) return `${(size / 1_000).toFixed(1)} KB`
+        return `${size} B`
+      },
+    },
+    {
+      field: "type",
+      headerName: "File Type",
+      width: 160,
+      renderCell: (params) => {
+        const type = params.row.type
+        return (
+          <Chip
+            label={type}
+            size="small"
+            sx={{
+              backgroundColor: chipColors[type] || theme.palette.grey[400],
+              color: theme.palette.primary.light,
+              fontSize: theme.custom.font.size.sm,
+              fontWeight: theme.custom.font.weight.bold,
+              height: 26,
+            }}
+          />
+        )
+      },
+    },
+    {
+      field: "uploadedAt",
+      headerName: "Uploaded",
+      width: 160,
+      renderCell: (params) => (
+        <span
+          style={{
+            fontSize: theme.custom.font.size.sm,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          {formatRelativeTime(params.value)}
+        </span>
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 80,
+      sortable: false,
+      renderCell: (params) => (
+        <IconButton
+          size="small"
+          onClick={(e) => handleMenuOpen(e, params.row.id)}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+      ),
+    },
+  ]
 
   return (
     <SStack
@@ -174,13 +208,8 @@ const FileExplorerWidget = () => {
       spacing={2}
       radius="lg"
       bgColor={theme.palette.background.default}
-
       height="100%"
-      sx={{
-        flexGrow: 1,
-        width: "100%",
-        minHeight: 0,
-      }}
+      sx={{ flexGrow: 1, width: "100%", minHeight: 0 }}
     >
       {/* Heading + Buttons */}
       <Stack
@@ -212,9 +241,13 @@ const FileExplorerWidget = () => {
           >
             File Explorer
           </Button>
+
+          {/* ⬇️ This now opens the modal */}
           <Button
             variant="contained"
             size="small"
+            onClick={handleOpenUpload}
+            startIcon={<CloudUploadIcon fontSize="small" />}
             sx={(theme: Theme) => ({
               color: theme.palette.getContrastText(
                 theme.palette.accent1.vibrant
@@ -237,17 +270,13 @@ const FileExplorerWidget = () => {
           rows={mockFiles}
           columns={columns}
           pageSizeOptions={[5, 10]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 5 } },
-          }}
+          initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
           disableRowSelectionOnClick
           sx={{
             border: "none",
             boxShadow: "none",
             backgroundColor: "transparent",
-            "& .MuiDataGrid-main": {
-              backgroundColor: "transparent",
-            },
+            "& .MuiDataGrid-main": { backgroundColor: "transparent" },
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "transparent",
               fontWeight: theme.custom.font.weight.bold,
@@ -283,6 +312,25 @@ const FileExplorerWidget = () => {
         <MenuItem onClick={handleMenuClose}>Delete File</MenuItem>
         <MenuItem onClick={handleMenuClose}>Share File</MenuItem>
       </Menu>
+
+      {/* ⬇️ Upload Modal */}
+      <UploadFilesModal
+        open={openUpload}
+        onClose={handleCloseUpload}
+        onUpload={handleUpload}
+        title="Upload files"
+        accept={{
+          "image/*": [],
+          "video/*": [],
+          "text/csv": [],
+          "application/json": [],
+          "application/pdf": [],
+        }}
+        maxFiles={20}
+        maxSize={5 * 1024 * 1024 * 1024} // 5GB each
+        helperText="Drag & drop or click to browse. Up to 20 files."
+        showTags
+      />
     </SStack>
   )
 }

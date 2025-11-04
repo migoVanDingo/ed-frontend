@@ -1,6 +1,5 @@
 import React from "react"
 import Grid from "@mui/material/Grid"
-import { useTheme } from "@emotion/react"
 import ProjectList from "../components/functional/dashboard/ProjectList"
 import LLMWidget from "../components/functional/dashboard/llm-widget/LLMWidget"
 import DatastoreOverview from "../components/functional/dashboard/datastore/DatastoreOverview"
@@ -8,6 +7,7 @@ import DatasetOverview from "../components/functional/dashboard/dataset/DatasetO
 import RecentActivity from "../components/functional/dashboard/recent-activity/RecentActivity"
 import ConnectionsWidget from "../components/functional/dashboard/connections/ConnectionsWidget"
 import type { Theme } from "@mui/material"
+import { useNavigate } from "react-router-dom"
 
 
 const activities = [
@@ -34,7 +34,13 @@ const activities = [
     },
 ]
 const DashboardPage = () => {
-  const theme = useTheme()
+  const nav = useNavigate()
+  const handleNavDatastore = () => {
+    nav('/dashboard/datastore')
+  }
+  const handleNavDatastoreSettings = () => {
+    nav('/datastore/settings')
+  }
   return (
     <Grid
       container
@@ -52,7 +58,10 @@ const DashboardPage = () => {
       >
         <DatastoreOverview
           actionButtons={[
-            { label: "View Datastore", variant: "contained", style: (theme: Theme) => ({
+            { 
+              label: "View Datastore", 
+              variant: "contained", 
+              style: (theme: Theme) => ({
                 color: theme.palette.getContrastText(
                   theme.palette.accent1.vibrant
                 ),
@@ -60,14 +69,20 @@ const DashboardPage = () => {
                 fontSize: theme.custom.font.size.sm,
                 backgroundColor: theme.palette.accent1.vibrant,
                 "&:hover": { backgroundColor: theme.palette.accent1.dim },
-              })},
-            { label: "Settings", variant: "outlined", style: (theme: Theme) => ({
+              }),
+              onClick: handleNavDatastore
+            },
+            { 
+              label: "Settings", 
+              variant: "outlined", 
+              style: (theme: Theme) => ({
                 borderRadius: theme.custom?.radii?.xs,
                 fontSize: theme.custom.font.size.sm,
                 color: theme.palette.accent1.vibrant,
                 borderColor: theme.palette.accent1.vibrant,
                 "&:hover": { backgroundColor: theme.palette.accent1.dim },
               }),
+              onClick: handleNavDatastoreSettings
             }
           ]}
         />

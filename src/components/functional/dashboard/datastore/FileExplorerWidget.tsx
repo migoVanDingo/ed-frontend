@@ -18,6 +18,7 @@ import { SStack } from "../../../styled/SStack"
 
 // ⬇️ import the modal component you have in your codebase
 import UploadFilesModal from "../../../common/modal/UploadFilesModal"
+import { UploadSession } from "../../../../api/UploadSession"
 // ^ adjust the relative path to wherever you saved the modal
 
 interface FileItem {
@@ -92,21 +93,14 @@ const FileExplorerWidget = () => {
     const form = new FormData()
     files.forEach((f) => form.append("files", f))
     tags.forEach((t) => form.append("tags", t))
-
-    console.log("files: ", files)
-    console.log("tags: ", tags)
-    /*
+    
     // Example POST — swap URL and add auth headers as needed
-    const res = await fetch("/api/datastore/upload", {
-      method: "POST",
-      body: form,
-      // headers: { Authorization: `Bearer ${token}` } // if needed
-    })
+    const res = await UploadSession.openUploadSession(form)
 
     if (!res.ok) {
       const text = await res.text().catch(() => "")
       throw new Error(text || "Upload failed")
-    } */
+    }
 
     // Optionally refresh your grid data here
     // await refetchFiles()

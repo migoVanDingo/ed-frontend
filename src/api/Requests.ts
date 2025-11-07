@@ -54,11 +54,14 @@ export class Requests {
     formData: FormData,
     endpoint: string,
     port: string | number,
+    accessToken: string | null,
     onUploadProgress?: (e: AxiosProgressEvent) => void
   ) =>
     this.request("post", endpoint, port, {
       data: formData,
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: { "Content-Type": "multipart/form-data",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+       },
       onUploadProgress,
     });
 

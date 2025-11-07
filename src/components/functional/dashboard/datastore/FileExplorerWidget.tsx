@@ -92,7 +92,11 @@ const FileExplorerWidget = () => {
   }) => {
     const form = new FormData()
     files.forEach((f) => form.append("files", f))
-    tags.forEach((t) => form.append("tags", t))
+    for (const t of tags) form.append("tags", t);
+    form.append("datastore_id", "test-datastore-id")
+    
+
+    console.log(`files: ${JSON.stringify(files)}`)
     
     // Example POST — swap URL and add auth headers as needed
     const res = await UploadSession.openUploadSession(form)

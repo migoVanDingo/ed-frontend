@@ -6,13 +6,12 @@ const ServicePort = {
 
 export class UploadSession {
     public static openUploadSession = async (payload: any) => 
-        Requests.doPost(
+        Requests.uploadFile(
             payload, 
             "/api/upload/session", 
             ServicePort.UPLOAD_SESSION,
-            {
-                Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`
-            }
+            sessionStorage.getItem("accessToken")
+            
         )
     
 } 

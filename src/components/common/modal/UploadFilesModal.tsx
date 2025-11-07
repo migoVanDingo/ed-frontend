@@ -144,7 +144,9 @@ export default function UploadFilesModal({
     setIsUploading(true);
     setError(null);
     try {
-      await onUpload?.({ files, tags });
+      const response = await onUpload?.({ files, tags });
+
+      console.log('response from onUpload:', response);
       setFiles([]);
       setTags(initialTags);
       onClose();

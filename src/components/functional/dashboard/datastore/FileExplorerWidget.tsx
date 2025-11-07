@@ -94,20 +94,16 @@ const FileExplorerWidget = () => {
     files.forEach((f) => form.append("files", f))
     for (const t of tags) form.append("tags", t);
     form.append("datastore_id", "test-datastore-id")
-    
-
-    console.log(`files: ${JSON.stringify(files)}`)
-    
-    // Example POST — swap URL and add auth headers as needed
+        
+    // Upload files
     const res = await UploadSession.openUploadSession(form)
-
-    if (!res.ok) {
+    if (!res.success) {
       const text = await res.text().catch(() => "")
       throw new Error(text || "Upload failed")
     }
 
-    // Optionally refresh your grid data here
-    // await refetchFiles()
+    return res
+    
   }
 
   const chipColors: Record<string, string> = {

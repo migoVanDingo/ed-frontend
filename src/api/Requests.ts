@@ -57,7 +57,7 @@ export class Requests {
     accessToken: string | null,
     onUploadProgress?: (e: AxiosProgressEvent) => void
   ) =>
-    this.request("post", endpoint, port, {
+    await this.request("post", endpoint, port, {
       data: formData,
       headers: { "Content-Type": "multipart/form-data",
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),

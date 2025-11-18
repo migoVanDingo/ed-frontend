@@ -19,6 +19,8 @@ import { SStack } from "../../../styled/SStack"
 // ⬇️ import the modal component you have in your codebase
 import UploadFilesModal from "../../../common/modal/UploadFilesModal"
 import { UploadSession } from "../../../../api/UploadSession"
+import { makeClientId } from "../../../../utility/upload/uploadClientId"
+import { uploadResumable } from "../../../../utility/upload/uploadResumable"
 // ^ adjust the relative path to wherever you saved the modal
 
 interface FileItem {
@@ -90,20 +92,58 @@ const FileExplorerWidget = () => {
     files: File[]
     tags: string[]
   }) => {
-    const form = new FormData()
-    files.forEach((f) => form.append("files", f))
-    for (const t of tags) form.append("tags", t);
-    form.append("datastore_id", "test-datastore-id")
-        
-    // Upload files
-    const res = await UploadSession.openUploadSession(form)
-    if (!res.success) {
-      const text = await res.text().catch(() => "")
-      throw new Error(text || "Upload failed")
+    const picked = Array.from(files ?? []).map((file) => ({
+      clientFileId: makeClientId(),
+      file,
+    }))
+
+    const fileSpecs = picked.map(({ clientFileId, file }) => ({
+      client_token: clientFileId,
+      filename: file.name,
+      content_type: file.type || "application/octet-stream",
+      size_bytes: file.size,
+    }))
+
+    const payload = {
+      datastore_id: "test-datastore-id",
+      files: fileSpecs,
+      tags,
     }
 
+    const res = await UploadSession.openUploadSession(payload)
+
+    if (!res?.success || !Array.isArray(res.data)) {
+      throw new Error(res?.message || "Failed to create upload sessions")
+    }
+
+    console.log('response: ', res)
+
+    const pickedMap = new Map(picked.map((entry) => [entry.clientFileId, entry.file]))
+
+    const uploads = res.data.map((session: any) => {
+      const targetFile = pickedMap.get(session.client_token)
+      if (!targetFile) {
+        throw new Error(
+          `No local file found for client token ${session.client_token}`
+        )
+      }
+
+      return uploadResumable({
+        uploadUrl: session.upload_url,
+        file: targetFile,
+        chunkSize: session.suggested_chunk_bytes ?? undefined,
+        onProgress: ({ bytesSent, total }) => {
+          const pct = total ? Math.round((bytesSent / total) * 100) : 0
+          console.debug(
+            `[upload:${session.client_token}] ${bytesSent}/${total} bytes (${pct}%)`
+          )
+        },
+      })
+    })
+    handleCloseUpload()
+    await Promise.all(uploads)
+
     return res
-    
   }
 
   const chipColors: Record<string, string> = {

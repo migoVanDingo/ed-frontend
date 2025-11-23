@@ -15,13 +15,8 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload"
 import HeadingBlock from "../../../common/HeadingBlock"
 import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
 import { SStack } from "../../../styled/SStack"
-
-// ⬇️ import the modal component you have in your codebase
+import { uploadFilesToDatastore } from "../../../../utility/upload/uploadFilesToDatastore"
 import UploadFilesModal from "../../../common/modal/UploadFilesModal"
-import { UploadSession } from "../../../../api/UploadSession"
-import { makeClientId } from "../../../../utility/upload/uploadClientId"
-import { uploadResumable } from "../../../../utility/upload/uploadResumable"
-// ^ adjust the relative path to wherever you saved the modal
 
 interface FileItem {
   id: string
@@ -92,59 +87,28 @@ const FileExplorerWidget = () => {
     files: File[]
     tags: string[]
   }) => {
-    const picked = Array.from(files ?? []).map((file) => ({
-      clientFileId: makeClientId(),
-      file,
-    }))
+    const datastoreId = "test-datastore-id" // TODO: get from real context/router later
 
-    const fileSpecs = picked.map(({ clientFileId, file }) => ({
-      client_token: clientFileId,
-      filename: file.name,
-      content_type: file.type || "application/octet-stream",
-      size_bytes: file.size,
-    }))
-
-    const payload = {
-      datastore_id: "test-datastore-id",
-      files: fileSpecs,
+    const result = await uploadFilesToDatastore({
+      datastoreId,
+      files,
       tags,
-    }
-
-    const res = await UploadSession.openUploadSession(payload)
-
-    if (!res?.success || !Array.isArray(res.data)) {
-      throw new Error(res?.message || "Failed to create upload sessions")
-    }
-
-    console.log('response: ', res)
-
-    const pickedMap = new Map(picked.map((entry) => [entry.clientFileId, entry.file]))
-
-    const uploads = res.data.map((session: any) => {
-      const targetFile = pickedMap.get(session.client_token)
-      if (!targetFile) {
-        throw new Error(
-          `No local file found for client token ${session.client_token}`
+      onFileProgress: ({ clientFileId, percent, bytesSent, total }) => {
+        console.debug(
+          `[upload:${clientFileId}] ${bytesSent}/${total ?? 0} bytes (${percent}%)`
         )
-      }
-
-      return uploadResumable({
-        uploadUrl: session.upload_url,
-        file: targetFile,
-        chunkSize: session.suggested_chunk_bytes ?? undefined,
-        onProgress: ({ bytesSent, total }) => {
-          const pct = total ? Math.round((bytesSent / total) * 100) : 0
-          console.debug(
-            `[upload:${session.client_token}] ${bytesSent}/${total} bytes (${pct}%)`
-          )
-        },
-      })
+        // later: wire this into React state for progress bars
+      },
     })
-    handleCloseUpload()
-    await Promise.all(uploads)
 
-    return res
+    console.log("upload result:", result)
+
+    handleCloseUpload()
+
+    // Keep returning the raw response to match the old behavior of handleUpload
+    return result.rawResponse
   }
+
 
   const chipColors: Record<string, string> = {
     CSV: theme.palette.colors.blue[500],

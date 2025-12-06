@@ -22,22 +22,26 @@ import AcceptInvite from "./pages/AcceptInvite";
 import DatastoreDashboard from "./pages/DatastoreDashboard";
 import DatasetDashboard from "./pages/DatasetDashboard";
 import ProjectDashboard from "./pages/ProjectDashboard";
+import { userDashboardLoader } from "./loaders/userDashboardLoader";
 
 // ─────────────────────────────────────────
 // Auth middleware helpers (utils/auth.ts)
 // ─────────────────────────────────────────
 const requireUser: MiddlewareFn = async () => {
   const res = await UserAPI.getUserSession();
+  console.log("User session response in requireUser middleware:", res);
   if (!res.success) {
     return redirect("/login");
   }
 
-  const data = await res.data.json();
-  if (!data.user) {
+  const { user } = await res.data;
+
+  if (!user) {
     return redirect("/login");
   }
+  
 
-  return { user: data.user }
+  return { user }
 };
 
 function getToken(): string | null {
@@ -80,11 +84,16 @@ function withMiddlewareLoader(
   baseLoader: (args: any) => Promise<any> = async () => null
 ) {
   return async (args: any) => {
+    let res: any = {};
     for (const fn of middlewares) {
       const result = await fn(args);
+      res = { ...res, ...result };
       if (result instanceof Response) return result;
     }
-    return baseLoader(args);
+    return {
+      ...(await baseLoader(args)),
+      ...res
+    };
   };
 }
 
@@ -156,7 +165,7 @@ const router = createBrowserRouter([
         path: "dashboard",
         element: <DashboardLayout />,
         id: "dashboard-layout",
-        loader: withMiddlewareLoader([requireUser]),
+        loader: withMiddlewareLoader([requireUser], userDashboardLoader),
         errorElement: <ErrorPage />,
         children: [
           {

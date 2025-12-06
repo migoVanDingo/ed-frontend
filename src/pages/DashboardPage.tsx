@@ -8,6 +8,7 @@ import RecentActivity from "../components/functional/dashboard/recent-activity/R
 import ConnectionsWidget from "../components/functional/dashboard/connections/ConnectionsWidget"
 import type { Theme } from "@mui/material"
 import { useNavigate } from "react-router-dom"
+import { useRouteLoaderData } from "react-router-dom"
 
 
 const activities = [
@@ -34,6 +35,8 @@ const activities = [
     },
 ]
 const DashboardPage = () => {
+  const loaderData = useRouteLoaderData("dashboard-layout") as any;
+  console.log("Loader Data in DashboardPage:", loaderData);
   const nav = useNavigate()
   const handleNavDatastore = () => {
     nav('/dashboard/datastore')

@@ -1,6 +1,9 @@
 import React, { Suspense } from "react";
 import { createBrowserRouter, RouterProvider, redirect } from "react-router-dom";
 
+// API
+import { UserAPI } from "./api/UserApi"
+
 // Layouts
 import RootLayout from "./components/layout/RootLayout";
 import AuthLayout from "./components/layout/AuthLayout";
@@ -23,6 +26,20 @@ import ProjectDashboard from "./pages/ProjectDashboard";
 // ─────────────────────────────────────────
 // Auth middleware helpers (utils/auth.ts)
 // ─────────────────────────────────────────
+const requireUser: MiddlewareFn = async () => {
+  const res = await UserAPI.getUserSession();
+  if (!res.success) {
+    return redirect("/login");
+  }
+
+  const data = await res.data.json();
+  if (!data.user) {
+    return redirect("/login");
+  }
+
+  return { user: data.user }
+};
+
 function getToken(): string | null {
   return sessionStorage.getItem("accessToken");
 }
@@ -48,7 +65,7 @@ function isAdmin(): boolean {
 // ─────────────────────────────────────────
 // Middleware
 // ─────────────────────────────────────────
-type MiddlewareFn = (args: any) => Promise<Response | void> | Response | void;
+type MiddlewareFn = (args: any) => Promise<Response | void | any> | Response | void | any;
 
 const requireAuth: MiddlewareFn = async () => {
   if (!isAuthenticated()) return redirect("/login");
@@ -139,7 +156,7 @@ const router = createBrowserRouter([
         path: "dashboard",
         element: <DashboardLayout />,
         id: "dashboard-layout",
-        //loader: withMiddlewareLoader([requireAuth]),
+        loader: withMiddlewareLoader([requireUser]),
         errorElement: <ErrorPage />,
         children: [
           {

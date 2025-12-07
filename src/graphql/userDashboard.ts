@@ -15,8 +15,20 @@ export const DASHBOARD_OVERVIEW_QUERY = `
     datastores {
       id
       name
-      description
-      createdAt
+      metrics {
+        fileCount
+        usedBytes
+        capacityBytes
+        freeBytes
+        usedPercent
+        lastUploadAt
+
+        byCategory {
+          category
+          fileCount
+          totalBytes
+        }
+      }
     }
     projects {
       id

@@ -35,8 +35,14 @@ const activities = [
     },
 ]
 const DashboardPage = () => {
-  const loaderData = useRouteLoaderData("dashboard-layout") as any;
-  console.log("Loader Data in DashboardPage:", loaderData);
+  const data = useRouteLoaderData("dashboard-layout") as {
+    datastores: any[]
+    datasets: any[]
+    user: any
+    projects: any[]
+    organizations: any[]
+  };
+  console.log("Loader Data in DashboardPage:", data);
   const nav = useNavigate()
   const handleNavDatastore = () => {
     nav('/dashboard/datastore')

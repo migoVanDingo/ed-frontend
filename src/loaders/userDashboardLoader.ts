@@ -12,6 +12,7 @@ type DashboardOverviewData = {
     datastores: any[];
     projects: any[];
     datasets: any[];
+    organizations: any[];
   };
 };
 
@@ -39,5 +40,6 @@ export async function userDashboardLoader() {
     datastores: me.datastores ?? [],
     projects: me.projects ?? [],
     datasets: me.datasets ?? [],
+    organizations: me.organizations ?? [],
   };
 }

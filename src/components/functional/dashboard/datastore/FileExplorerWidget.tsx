@@ -17,6 +17,9 @@ import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
 import { SStack } from "../../../styled/SStack"
 import { uploadFilesToDatastore } from "../../../../utility/upload/uploadFilesToDatastore"
 import UploadFilesModal from "../../../common/modal/UploadFilesModal"
+import type { DashboardLoaderData } from "../../../../types/dashboard"
+import { useRouteLoaderData } from "react-router-dom"
+import { useAppSelector } from "../../../../hooks/reduxHook"
 
 interface FileItem {
   id: string
@@ -57,6 +60,18 @@ const mockFiles: FileItem[] = [
 const FileExplorerWidget = () => {
   const theme = useTheme()
 
+   const data = useRouteLoaderData("dashboard-layout") as DashboardLoaderData | undefined;
+  const currentDatastoreId = useAppSelector(
+    (state) => state.workspace.currentDatastoreId
+  );
+
+  const datastores = data?.datastores ?? [];
+
+  const selectedDatastore =
+    datastores.find((d) => d.id === currentDatastoreId) ?? datastores[0];
+
+  const datastoreIdForUpload = selectedDatastore?.id;
+
   // menu state
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
@@ -87,7 +102,7 @@ const FileExplorerWidget = () => {
     files: File[]
     tags: string[]
   }) => {
-    const datastoreId = "test-datastore-id" // TODO: get from real context/router later
+    const datastoreId = datastoreIdForUpload // TODO: get from real context/router later
 
     const result = await uploadFilesToDatastore({
       datastoreId,

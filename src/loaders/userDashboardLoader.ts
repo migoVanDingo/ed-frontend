@@ -2,7 +2,7 @@
 import { GraphQLClient } from "../graphql/GraphQLClient";
 import { DASHBOARD_OVERVIEW_QUERY } from "../graphql/userDashboard";
 
-const GRAPHQL_PORT = ":5005"; // or whatever your service uses
+const GRAPHQL_PORT = "5005"; // or whatever your service uses
 
 type DashboardOverviewData = {
   me: {

@@ -11,6 +11,9 @@ import StarIcon from "@mui/icons-material/Star"
 import ShareIcon from "@mui/icons-material/Share"
 import HeadingBlock from "../../../common/HeadingBlock"
 import { SStack } from "../../../styled/SStack"
+import type { DatastoreSummary } from "../../../../types/dashboard"
+import { formatBytes } from "../../../../utility/formatter/byteHelper"
+import { formatDate } from "../../../../utility/formatter/timeHelper"
 
 // Type for buttons
 type ActionButton = {
@@ -25,27 +28,33 @@ type ActionButton = {
 interface DataOverviewProps {
   title?: string
   actionButtons?: ActionButton[]
+  data?: DatastoreSummary | null
 }
 
 const DataOverview: React.FC<DataOverviewProps> = ({
   title = "Datastore Overview",
   actionButtons = [],
+  data = null,
 }) => {
   const theme = useTheme()
 
-  const totalStorage = 10 // GB
-  const usedStorage = 3.2
-  const storagePercent = (usedStorage / totalStorage) * 100
+  console.log("DatastoreOverview data:", data)
 
-  const fileTypeData = [
-    { id: 0, value: 60, label: "CSV" },
-    { id: 1, value: 25, label: "JSON" },
-    { id: 2, value: 15, label: "Images" },
-  ]
+  const totalStorage = data?.metrics.capacityBytes
+  const usedStorage = data?.metrics.usedBytes
+  const storagePercent = data?.metrics.usedPercent! < 1 ? 1 : data?.metrics.usedPercent!
+
+  const fileTypeData = data?.metrics.byCategory.map((item, index) => ({
+    id: index,
+    value: item.totalBytes,
+    label: item.category.toUpperCase(),
+  })) || []
+
+
 
   const shares = 12
   const stars = 48
-  const lastUpload = "Aug 14, 2025"
+  const lastUpload = formatDate(data?.metrics.lastUploadAt)
 
   return (
     <SStack
@@ -84,7 +93,7 @@ const DataOverview: React.FC<DataOverviewProps> = ({
             Storage Usage
           </Typography>
           <Typography variant="body2" gutterBottom>
-            {usedStorage} GB of {totalStorage} GB (
+            {formatBytes(usedStorage)} of {formatBytes(totalStorage)} (
             {Math.round(100 - storagePercent)}% remaining)
           </Typography>
           <LinearProgress

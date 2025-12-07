@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useEffect } from "react"
 import Grid from "@mui/material/Grid"
 import ProjectList from "../components/functional/dashboard/ProjectList"
 import LLMWidget from "../components/functional/dashboard/llm-widget/LLMWidget"
@@ -9,30 +9,33 @@ import ConnectionsWidget from "../components/functional/dashboard/connections/Co
 import type { Theme } from "@mui/material"
 import { useNavigate } from "react-router-dom"
 import { useRouteLoaderData } from "react-router-dom"
-
+import { useDispatch } from "react-redux"
+import { useAppSelector } from "../hooks/reduxHook"
+import { current } from "@reduxjs/toolkit"
+import type { DatastoreSummary } from "../types/dashboard"
 
 const activities = [
   {
-      user: "Alice",
-      action: "uploaded to",
-      entity: "Datastore",
-      type: "datastore",
-      date: "2025-08-12T10:00:00Z",
-    },
-    {
-      user: "Bob",
-      action: "ran pipeline in",
-      entity: "Climate Project",
-      type: "project",
-      date: "2025-08-15T01:00:00Z",
-    },
-    {
-      user: "Eve",
-      action: "created dataset",
-      entity: "Brain Imaging",
-      type: "dataset",
-      date: "2025-08-14T18:30:00Z",
-    },
+    user: "Alice",
+    action: "uploaded to",
+    entity: "Datastore",
+    type: "datastore",
+    date: "2025-08-12T10:00:00Z",
+  },
+  {
+    user: "Bob",
+    action: "ran pipeline in",
+    entity: "Climate Project",
+    type: "project",
+    date: "2025-08-15T01:00:00Z",
+  },
+  {
+    user: "Eve",
+    action: "created dataset",
+    entity: "Brain Imaging",
+    type: "dataset",
+    date: "2025-08-14T18:30:00Z",
+  },
 ]
 const DashboardPage = () => {
   const data = useRouteLoaderData("dashboard-layout") as {
@@ -41,14 +44,42 @@ const DashboardPage = () => {
     user: any
     projects: any[]
     organizations: any[]
-  };
-  console.log("Loader Data in DashboardPage:", data);
+  }
+  console.log("Loader Data in DashboardPage:", data)
   const nav = useNavigate()
+
+  const currentDatastoreId = useAppSelector(
+    (state) => state.workspace.currentDatastoreId
+  )
+
+  const [currentDatastore, setCurrentDatastore] = React.useState<
+    DatastoreSummary | null
+  >(null)
+
+  useEffect(() => {
+    const init = () => {
+      const datastore = parseCurrentDatastoreObject(
+        currentDatastoreId as string,
+        data.datastores as DatastoreSummary[]
+      )
+      setCurrentDatastore(datastore)
+    }
+
+    init()
+  }, [data, currentDatastoreId])
+
+  const parseCurrentDatastoreObject = (
+    id: string,
+    datastores: DatastoreSummary[]
+  ) => {
+    return datastores.find((ds) => ds.id === id) || null
+  }
+
   const handleNavDatastore = () => {
-    nav('/dashboard/datastore')
+    nav("/dashboard/datastore")
   }
   const handleNavDatastoreSettings = () => {
-    nav('/datastore/settings')
+    nav("/datastore/settings")
   }
   return (
     <Grid
@@ -66,10 +97,11 @@ const DashboardPage = () => {
         sx={{ display: "flex", flexDirection: "column", gap: 1 }}
       >
         <DatastoreOverview
+          data={currentDatastore}
           actionButtons={[
-            { 
-              label: "View Datastore", 
-              variant: "contained", 
+            {
+              label: "View Datastore",
+              variant: "contained",
               style: (theme: Theme) => ({
                 color: theme.palette.getContrastText(
                   theme.palette.accent1.vibrant
@@ -79,11 +111,11 @@ const DashboardPage = () => {
                 backgroundColor: theme.palette.accent1.vibrant,
                 "&:hover": { backgroundColor: theme.palette.accent1.dim },
               }),
-              onClick: handleNavDatastore
+              onClick: handleNavDatastore,
             },
-            { 
-              label: "Settings", 
-              variant: "outlined", 
+            {
+              label: "Settings",
+              variant: "outlined",
               style: (theme: Theme) => ({
                 borderRadius: theme.custom?.radii?.xs,
                 fontSize: theme.custom.font.size.sm,
@@ -91,8 +123,8 @@ const DashboardPage = () => {
                 borderColor: theme.palette.accent1.vibrant,
                 "&:hover": { backgroundColor: theme.palette.accent1.dim },
               }),
-              onClick: handleNavDatastoreSettings
-            }
+              onClick: handleNavDatastoreSettings,
+            },
           ]}
         />
         <DatasetOverview />

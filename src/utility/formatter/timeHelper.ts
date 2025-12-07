@@ -16,3 +16,26 @@ export const formatRelativeTime = (date: string) => {
   if (months < 12) return `${months}mo ago`
   return `${years}y ago`
 }
+
+// utils/formatDate.ts
+
+export function formatDate(
+  isoString: string | null | undefined,
+  opts: Intl.DateTimeFormatOptions = {}
+): string {
+  if (!isoString) return "";
+
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "";
+
+  // Default formatting (e.g., "Dec 7, 2025")
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  };
+
+  const options = { ...defaultOptions, ...opts };
+
+  return new Intl.DateTimeFormat("en-US", options).format(date);
+}

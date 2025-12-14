@@ -5,7 +5,7 @@ export type DashboardLoaderData = {
   datastores: DatastoreSummary[];
   organizations: OrganizationSummary[];
   projects: ProjectSummary[];
-  user: UserSummary;
+  user: DashboardUserSummary;   // ⬅️ changed from UserSummary
 };
 
 export type DatasetSummary = {
@@ -54,6 +54,13 @@ export type DatastoreCategoryBreakdown = {
   totalBytes: number;
 };
 
+export type DashboardUserSummary = {
+  id: string;
+  email: string;
+  displayName?: string | null;
+};
+
+// Keep your existing "full" user type for other contexts
 export type UserSummary = {
   id: string;
   email: string;

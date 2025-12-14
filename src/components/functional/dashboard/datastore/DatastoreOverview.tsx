@@ -42,7 +42,7 @@ const DataOverview: React.FC<DataOverviewProps> = ({
 
   const totalStorage = data?.metrics.capacityBytes
   const usedStorage = data?.metrics.usedBytes
-  const storagePercent = data?.metrics.usedPercent! < 1 ? 1 : data?.metrics.usedPercent!
+  const storagePercent = data?.metrics.usedPercent! == 0 ? 0 : data?.metrics.usedPercent! < 1 ? 1 : data?.metrics.usedPercent! // If the percentage is between 0-1 default to 1%
 
   const fileTypeData = data?.metrics.byCategory.map((item, index) => ({
     id: index,

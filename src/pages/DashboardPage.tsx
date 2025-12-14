@@ -7,12 +7,13 @@ import DatasetOverview from "../components/functional/dashboard/dataset/DatasetO
 import RecentActivity from "../components/functional/dashboard/recent-activity/RecentActivity"
 import ConnectionsWidget from "../components/functional/dashboard/connections/ConnectionsWidget"
 import type { Theme } from "@mui/material"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useRevalidator } from "react-router-dom"
 import { useRouteLoaderData } from "react-router-dom"
-import { useDispatch } from "react-redux"
 import { useAppSelector } from "../hooks/reduxHook"
-import { current } from "@reduxjs/toolkit"
 import type { DatastoreSummary } from "../types/dashboard"
+import { useSubscription } from "@apollo/client"
+import { type DashboardLoaderData } from "../types/dashboard"
+import { DATASTORE_UPDATED_SUBSCRIPTION } from "../graphql/subscriptions/datastoreSubscription"
 
 const activities = [
   {
@@ -37,14 +38,28 @@ const activities = [
     date: "2025-08-14T18:30:00Z",
   },
 ]
+
 const DashboardPage = () => {
-  const data = useRouteLoaderData("dashboard-layout") as {
-    datastores: any[]
-    datasets: any[]
-    user: any
-    projects: any[]
-    organizations: any[]
-  }
+  const data = useRouteLoaderData("dashboard-layout") as DashboardLoaderData
+  const revalidator = useRevalidator()
+
+  const { user, datastores, datasets, projects, organizations } = data
+
+  const primaryDatastore = datastores[0]
+
+  useSubscription(DATASTORE_UPDATED_SUBSCRIPTION, {
+    skip: !primaryDatastore,
+    variables: primaryDatastore
+      ? { datastoreId: primaryDatastore.id }
+      : undefined,
+    onData: ({ data }) => {
+      console.log("datastoreUpdated subscription event:", data)
+
+      // 🔁 This tells React Router to rerun the loaders,
+      // including `userDashboardLoader` on "dashboard-layout".
+      revalidator.revalidate()
+    },
+  })
   console.log("Loader Data in DashboardPage:", data)
   const nav = useNavigate()
 
@@ -52,9 +67,8 @@ const DashboardPage = () => {
     (state) => state.workspace.currentDatastoreId
   )
 
-  const [currentDatastore, setCurrentDatastore] = React.useState<
-    DatastoreSummary | null
-  >(null)
+  const [currentDatastore, setCurrentDatastore] =
+    React.useState<DatastoreSummary | null>(null)
 
   useEffect(() => {
     const init = () => {

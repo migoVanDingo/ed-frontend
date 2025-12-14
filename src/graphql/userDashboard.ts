@@ -1,47 +1,53 @@
-// graphql/dashboard.ts
+import { gql } from "@apollo/client";
 
-export const DASHBOARD_OVERVIEW_QUERY = `
+export const DASHBOARD_OVERVIEW_QUERY = gql`
   query DashboardOverview {
-  me {
-    id
-    email
-    displayName
-    organizations {
+    me {
       id
-      name
-      description
-      createdAt
-    }
-    datastores {
-      id
-      name
-      metrics {
-        fileCount
-        usedBytes
-        capacityBytes
-        freeBytes
-        usedPercent
-        lastUploadAt
+      email
+      displayName
 
-        byCategory {
-          category
+      organizations {
+        id
+        name
+        description
+        createdAt
+      }
+
+      datastores {
+        id
+        name
+        description
+        createdAt
+        metrics {
+          capacityBytes
+          usedBytes
+          freeBytes
+          usedPercent
           fileCount
-          totalBytes
+          lastUploadAt
+          byCategory {
+            category
+            contentTypes
+            fileCount
+            totalBytes
+          }
         }
       }
-    }
-    projects {
-      id
-      name
-      description
-      createdAt
-    }
-    datasets {
-      id
-      name
-      description
-      createdAt
+
+      projects {
+        id
+        name
+        description
+        createdAt
+      }
+
+      datasets {
+        id
+        name
+        description
+        createdAt
+      }
     }
   }
-}
-`
+`;

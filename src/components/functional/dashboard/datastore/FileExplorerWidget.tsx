@@ -1,4 +1,5 @@
-import React, { useState } from "react"
+// FileExplorerWidget.tsx
+import React, { useMemo, useState, useEffect } from "react"
 import { DataGrid, type GridColDef } from "@mui/x-data-grid"
 import {
   Box,
@@ -8,10 +9,13 @@ import {
   Menu,
   MenuItem,
   Chip,
+  Snackbar,
+  Alert,
 } from "@mui/material"
 import { useTheme, type Theme } from "@mui/material/styles"
 import MoreVertIcon from "@mui/icons-material/MoreVert"
 import CloudUploadIcon from "@mui/icons-material/CloudUpload"
+import CircularProgress from "@mui/material/CircularProgress"
 import HeadingBlock from "../../../common/HeadingBlock"
 import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
 import { SStack } from "../../../styled/SStack"
@@ -20,64 +24,59 @@ import UploadFilesModal from "../../../common/modal/UploadFilesModal"
 import type { DashboardLoaderData } from "../../../../types/dashboard"
 import { useRouteLoaderData } from "react-router-dom"
 import { useAppSelector } from "../../../../hooks/reduxHook"
+import { useSubscription } from "@apollo/client"
+import { FILE_STATUS_UPDATED_SUBSCRIPTION } from "../../../../graphql/subscriptions/fileStatusUpdate"
+
+type FileStatus =
+  | "uploading"
+  | "pending_upload"
+  | "processing"
+  | "ready"
+  | "failed"
 
 interface FileItem {
-  id: string
+  id: string // this should be FILE id once we have it
   name: string
-  directory: string
-  size: number
-  type: string
-  uploadedAt: string | Date
+  directory?: string
+  sizeBytes?: number
+  type?: string
+  uploadedAt?: string | Date
+  status: FileStatus
+  uploadProgress?: number // 0–100, only meaningful while uploading
 }
-
-const mockFiles: FileItem[] = [
-  {
-    id: "1",
-    name: "data.csv",
-    directory: "/datasets/raw",
-    size: 1_250_000,
-    type: "CSV",
-    uploadedAt: "2025-08-10T14:22:00Z",
-  },
-  {
-    id: "2",
-    name: "annotations.json",
-    directory: "/datasets/annotations",
-    size: 258_000,
-    type: "JSON",
-    uploadedAt: "2025-08-01T14:22:00Z",
-  },
-  {
-    id: "3",
-    name: "video.mp4",
-    directory: "/datasets/media",
-    size: 50_250_000,
-    type: "MP4",
-    uploadedAt: "2025-08-15T10:00:00Z",
-  },
-]
 
 const FileExplorerWidget = () => {
   const theme = useTheme()
 
-   const data = useRouteLoaderData("dashboard-layout") as DashboardLoaderData | undefined;
+  const data = useRouteLoaderData("dashboard-layout") as
+    | DashboardLoaderData
+    | undefined
   const currentDatastoreId = useAppSelector(
     (state) => state.workspace.currentDatastoreId
-  );
+  )
 
-  const datastores = data?.datastores ?? [];
+  const datastores = data?.datastores ?? []
 
   const selectedDatastore =
-    datastores.find((d) => d.id === currentDatastoreId) ?? datastores[0];
+    datastores.find((d) => d.id === currentDatastoreId) ?? datastores[0]
 
-  const datastoreIdForUpload = selectedDatastore?.id;
+  const datastoreIdForUpload = selectedDatastore?.id
+
+  // ──────────────────────────────────────
+  // Local state for files in this view
+  // ──────────────────────────────────────
+  const [files, setFiles] = useState<FileItem[]>([])
 
   // menu state
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
 
-  // ⬇️ upload modal state
+  // upload modal state
   const [openUpload, setOpenUpload] = useState(false)
+
+  // snackbar state
+  const [snackbarOpen, setSnackbarOpen] = useState(false)
+  const [snackbarMessage, setSnackbarMessage] = useState("")
 
   const handleMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
@@ -94,36 +93,194 @@ const FileExplorerWidget = () => {
   const handleOpenUpload = () => setOpenUpload(true)
   const handleCloseUpload = () => setOpenUpload(false)
 
-  // ⬇️ Replace with your real upload endpoint
+  const handleSnackbarClose = (
+    _event?: React.SyntheticEvent | Event,
+    reason?: string
+  ) => {
+    if (reason === "clickaway") return
+    setSnackbarOpen(false)
+  }
+
+  // ──────────────────────────────────────
+  // Subscription: fileStatusUpdated
+  // ──────────────────────────────────────
+
+  // For now, we can subscribe per-datastore and ignore uploadSession filter.
+  const { data: subData, error: subError } = useSubscription(
+    FILE_STATUS_UPDATED_SUBSCRIPTION,
+    {
+      skip: !datastoreIdForUpload,
+      variables: {
+        datastoreId: datastoreIdForUpload ?? "",
+        uploadSessionId: null,
+      },
+    }
+  )
+
+  useEffect(() => {
+    if (!subData?.fileStatusUpdated) return
+    const evt = subData.fileStatusUpdated
+
+    setFiles((prev) => {
+      let found = false
+      const next = prev.map((f) => {
+        if (f.id === evt.fileId) {
+          found = true
+          return {
+            ...f,
+            status: evt.newStatus as FileStatus,
+            // once backend takes over, we don't care about local uploadProgress
+            uploadProgress:
+              evt.newStatus === "ready" || evt.newStatus === "failed"
+                ? 100
+                : f.uploadProgress,
+            uploadedAt: evt.occurredAt ?? f.uploadedAt,
+          }
+        }
+        return f
+      })
+
+      // If file wasn't in the list (e.g., created elsewhere), optionally add it.
+      if (!found) {
+        next.push({
+          id: evt.fileId,
+          name: evt.fileId, // TODO: replace with filename when available in event
+          status: evt.newStatus as FileStatus,
+          uploadedAt: evt.occurredAt,
+        })
+      }
+
+      return next
+    })
+  }, [subData])
+
+  if (subError) {
+    console.error("fileStatusUpdated subscription error", subError)
+  }
+
+  // ──────────────────────────────────────
+  // Upload handler
+  // ──────────────────────────────────────
+
   const handleUpload = async ({
-    files,
+    files: selectedFiles,
     tags,
   }: {
     files: File[]
     tags: string[]
   }) => {
-    const datastoreId = datastoreIdForUpload // TODO: get from real context/router later
+    if (!datastoreIdForUpload) {
+      console.warn("No datastore selected for upload")
+      return
+    }
 
+    // 1) Optimistically insert rows as "uploading"
+    //    We'll patch them with real fileId/size from the response.
+    const tempRows: FileItem[] = selectedFiles.map((f) => ({
+      id: `${f.name}-${f.size}-${f.lastModified}`, // temp client id
+      name: f.name,
+      sizeBytes: f.size,
+      type: f.type || "Unknown",
+      uploadedAt: new Date(),
+      status: "uploading",
+      uploadProgress: 0,
+    }))
+
+    setFiles((prev) => [...tempRows, ...prev])
+
+    // 2) Start upload, wiring progress into our local rows
     const result = await uploadFilesToDatastore({
-      datastoreId,
-      files,
+      datastoreId: datastoreIdForUpload,
+      files: selectedFiles,
       tags,
-      onFileProgress: ({ clientFileId, percent, bytesSent, total }) => {
-        console.debug(
-          `[upload:${clientFileId}] ${bytesSent}/${total ?? 0} bytes (${percent}%)`
+      onFileProgress: ({
+        clientFileId,
+        percent,
+        bytesSent,
+        total,
+      }: {
+        clientFileId: string
+        percent: number
+        bytesSent: number
+        total?: number | null
+      }) => {
+        // Assumption: uploadFilesToDatastore uses the same clientFileId scheme
+        // used above, or maps to the fileId generated server-side.
+        setFiles((prev) =>
+          prev.map((row) =>
+            row.id === clientFileId
+              ? {
+                  ...row,
+                  uploadProgress: percent,
+                  // while upload is happening, label as "uploading"
+                  status: "uploading",
+                }
+              : row
+          )
         )
-        // later: wire this into React state for progress bars
+
+        console.debug(
+          `[upload:${clientFileId}] ${bytesSent}/${
+            total ?? 0
+          } bytes (${percent}%)`
+        )
       },
     })
 
-    console.log("upload result:", result)
+    // 3) Map temp client IDs to real file IDs from backend
+    //    This depends on how uploadFilesToDatastore structures its response.
+    //    Let's assume it returns something like:
+    //    { rawResponse, files: [{ clientFileId, fileId, sizeBytes, filename }] }
+    const uploadedFiles = result?.files ?? []
 
+    if (uploadedFiles.length) {
+      setFiles((prev) => {
+        const map = new Map<string, FileItem>()
+
+        // Start from existing list
+        prev.forEach((row) => map.set(row.id, row))
+
+        uploadedFiles.forEach((f: any) => {
+          // UploadResultFile has fileId?: string
+          if (!f.fileId) {
+            // If backend somehow didn’t return a fileId, just skip it
+            return
+          }
+
+          const existing = map.get(f.clientFileId)
+          if (existing) {
+            map.delete(f.clientFileId)
+            map.set(f.fileId, {
+              ...existing,
+              id: f.fileId,
+              name: f.filename || existing.name,
+              sizeBytes: f.sizeBytes ?? existing.sizeBytes,
+              // Keep status as "uploading" until backend flips it via subscription
+            })
+          } else {
+            map.set(f.fileId, {
+              id: f.fileId,
+              name: f.filename ?? f.fileId,
+              sizeBytes: f.sizeBytes,
+              status: "uploading",
+            })
+          }
+        })
+
+        return Array.from(map.values())
+      })
+    }
+
+    // 4) Close modal & toast
     handleCloseUpload()
+    setSnackbarMessage(
+      "Your files are being uploaded. You can track progress here."
+    )
+    setSnackbarOpen(true)
 
-    // Keep returning the raw response to match the old behavior of handleUpload
-    return result.rawResponse
+    // Preserve legacy behavior
+    return result?.rawResponse
   }
-
 
   const chipColors: Record<string, string> = {
     CSV: theme.palette.colors.blue[500],
@@ -134,86 +291,148 @@ const FileExplorerWidget = () => {
     PDF: theme.palette.colors.red[500],
   }
 
-  const columns: GridColDef<FileItem>[] = [
-    { field: "name", headerName: "Name", flex: 1, minWidth: 180 },
-    {
-      field: "directory",
-      headerName: "Directory",
-      flex: 1,
-      renderCell: (params) => (
-        <span
-          style={{
-            fontSize: theme.custom.font.size.sm,
-            color: theme.palette.text.secondary,
-          }}
-        >
-          {params.value}
-        </span>
-      ),
-    },
-    {
-      field: "size",
-      headerName: "Size",
-      width: 120,
-      renderCell: (params) => {
-        const size = params.row.size
-        if (!size) return "—"
-        if (size >= 1_000_000) return `${(size / 1_000_000).toFixed(1)} MB`
-        if (size >= 1_000) return `${(size / 1_000).toFixed(1)} KB`
-        return `${size} B`
+  const columns: GridColDef<FileItem>[] = useMemo(
+    () => [
+      { field: "name", headerName: "Name", flex: 1, minWidth: 180 },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 160,
+        renderCell: (params) => {
+          const status = params.row.status
+          const progress = params.row.uploadProgress
+          const labelMap: Record<FileStatus, string> = {
+            uploading:
+              progress != null ? `Uploading ${progress}%` : "Uploading",
+            pending_upload: "Pending upload",
+            processing: "Processing",
+            ready: "Ready",
+            failed: "Failed",
+          }
+
+          const colorMap: Partial<Record<FileStatus, string>> = {
+            ready: theme.palette.success.main,
+            failed: theme.palette.error.main,
+          }
+
+          return (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              {(status === "uploading" || status === "processing") && (
+                <CircularProgress size={16} />
+              )}
+              <span
+                style={{
+                  fontSize: theme.custom.font.size.sm,
+                  color: colorMap[status] ?? theme.palette.text.secondary,
+                }}
+              >
+                {labelMap[status] ?? status}
+              </span>
+            </Stack>
+          )
+        },
       },
-    },
-    {
-      field: "type",
-      headerName: "File Type",
-      width: 160,
-      renderCell: (params) => {
-        const type = params.row.type
-        return (
-          <Chip
-            label={type}
-            size="small"
-            sx={{
-              backgroundColor: chipColors[type] || theme.palette.grey[400],
-              color: theme.palette.primary.light,
+      {
+        field: "directory",
+        headerName: "Directory",
+        flex: 1,
+        renderCell: (params) => (
+          <span
+            style={{
               fontSize: theme.custom.font.size.sm,
-              fontWeight: theme.custom.font.weight.bold,
-              height: 26,
+              color: theme.palette.text.secondary,
             }}
-          />
-        )
+          >
+            {params.value || "—"}
+          </span>
+        ),
       },
-    },
-    {
-      field: "uploadedAt",
-      headerName: "Uploaded",
-      width: 160,
-      renderCell: (params) => (
-        <span
-          style={{
-            fontSize: theme.custom.font.size.sm,
-            color: theme.palette.text.secondary,
-          }}
-        >
-          {formatRelativeTime(params.value)}
-        </span>
-      ),
-    },
-    {
-      field: "actions",
-      headerName: "Actions",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          size="small"
-          onClick={(e) => handleMenuOpen(e, params.row.id)}
-        >
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
-      ),
-    },
-  ]
+      {
+        field: "sizeBytes",
+        headerName: "Size",
+        width: 120,
+        renderCell: (params) => {
+          const size = params.row.sizeBytes
+          if (!size) return "—"
+          if (size >= 1_000_000) return `${(size / 1_000_000).toFixed(1)} MB`
+          if (size >= 1_000) return `${(size / 1_000).toFixed(1)} KB`
+          return `${size} B`
+        },
+      },
+      {
+        field: "type",
+        headerName: "File Type",
+        width: 160,
+        renderCell: (params) => {
+          const type = params.row.type
+          if (!type) return "—"
+          return (
+            <Chip
+              label={type}
+              size="small"
+              sx={{
+                backgroundColor: chipColors[type] || theme.palette.grey[400],
+                color: theme.palette.primary.light,
+                fontSize: theme.custom.font.size.sm,
+                fontWeight: theme.custom.font.weight.bold,
+                height: 26,
+              }}
+            />
+          )
+        },
+      },
+      {
+        field: "uploadedAt",
+        headerName: "Uploaded",
+        width: 160,
+        renderCell: (params) => {
+          if (!params.value) return "—"
+          return (
+            <span
+              style={{
+                fontSize: theme.custom.font.size.sm,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              {formatRelativeTime(params.value)}
+            </span>
+          )
+        },
+      },
+      {
+        field: "actions",
+        headerName: "Actions",
+        width: 80,
+        sortable: false,
+        renderCell: (params) => (
+          <IconButton
+            size="small"
+            onClick={(e) => handleMenuOpen(e, params.row.id)}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+        ),
+      },
+    ],
+    [chipColors, theme, handleMenuOpen]
+  )
+
+  // Custom empty state
+  const NoRowsOverlay = () => (
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: theme.palette.text.secondary,
+        fontSize: theme.custom.font.size.sm,
+        p: 2,
+      }}
+    >
+      No files yet. Upload files to your datastore to get started.
+    </Box>
+  )
 
   return (
     <SStack
@@ -255,7 +474,6 @@ const FileExplorerWidget = () => {
             File Explorer
           </Button>
 
-          {/* ⬇️ This now opens the modal */}
           <Button
             variant="contained"
             size="small"
@@ -277,14 +495,14 @@ const FileExplorerWidget = () => {
         </Stack>
       </Stack>
 
-      {/* DataGrid */}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <DataGrid
-          rows={mockFiles}
+          rows={files}
           columns={columns}
           pageSizeOptions={[5, 10]}
           initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
           disableRowSelectionOnClick
+          slots={{ noRowsOverlay: NoRowsOverlay }}
           sx={{
             border: "none",
             boxShadow: "none",
@@ -326,7 +544,7 @@ const FileExplorerWidget = () => {
         <MenuItem onClick={handleMenuClose}>Share File</MenuItem>
       </Menu>
 
-      {/* ⬇️ Upload Modal */}
+      {/* Upload Modal */}
       <UploadFilesModal
         open={openUpload}
         onClose={handleCloseUpload}
@@ -344,6 +562,23 @@ const FileExplorerWidget = () => {
         helperText="Drag & drop or click to browse. Up to 20 files."
         showTags
       />
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity="info"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </SStack>
   )
 }

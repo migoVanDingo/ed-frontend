@@ -26,6 +26,10 @@ import { useRouteLoaderData } from "react-router-dom"
 import { useAppSelector } from "../../../../hooks/reduxHook"
 import { useSubscription } from "@apollo/client"
 import { FILE_STATUS_UPDATED_SUBSCRIPTION } from "../../../../graphql/subscriptions/fileStatusUpdate"
+import type {
+  UploadResultFile,
+  UploadResult,
+} from "../../../../utility/upload/uploadFilesToDatastore"
 
 type FileStatus =
   | "uploading"
@@ -36,6 +40,7 @@ type FileStatus =
 
 interface FileItem {
   id: string // this should be FILE id once we have it
+  fileId?: string // redundant but can keep
   name: string
   directory?: string
   sizeBytes?: number
@@ -116,7 +121,6 @@ const FileExplorerWidget = () => {
       },
     }
   )
-
   useEffect(() => {
     if (!subData?.fileStatusUpdated) return
     const evt = subData.fileStatusUpdated
@@ -129,7 +133,6 @@ const FileExplorerWidget = () => {
           return {
             ...f,
             status: evt.newStatus as FileStatus,
-            // once backend takes over, we don't care about local uploadProgress
             uploadProgress:
               evt.newStatus === "ready" || evt.newStatus === "failed"
                 ? 100
@@ -140,11 +143,10 @@ const FileExplorerWidget = () => {
         return f
       })
 
-      // If file wasn't in the list (e.g., created elsewhere), optionally add it.
       if (!found) {
         next.push({
           id: evt.fileId,
-          name: evt.fileId, // TODO: replace with filename when available in event
+          name: evt.fileId,
           status: evt.newStatus as FileStatus,
           uploadedAt: evt.occurredAt,
         })
@@ -161,7 +163,6 @@ const FileExplorerWidget = () => {
   // ──────────────────────────────────────
   // Upload handler
   // ──────────────────────────────────────
-
   const handleUpload = async ({
     files: selectedFiles,
     tags,
@@ -174,112 +175,55 @@ const FileExplorerWidget = () => {
       return
     }
 
-    // 1) Optimistically insert rows as "uploading"
-    //    We'll patch them with real fileId/size from the response.
-    const tempRows: FileItem[] = selectedFiles.map((f) => ({
-      id: `${f.name}-${f.size}-${f.lastModified}`, // temp client id
-      name: f.name,
-      sizeBytes: f.size,
-      type: f.type || "Unknown",
-      uploadedAt: new Date(),
-      status: "uploading",
-      uploadProgress: 0,
-    }))
-
-    setFiles((prev) => [...tempRows, ...prev])
-
-    // 2) Start upload, wiring progress into our local rows
-    const result = await uploadFilesToDatastore({
+    // 1) Call backend to open upload session + get real file IDs.
+    //    Modal stays open while this promise is pending.
+    const result: UploadResult = await uploadFilesToDatastore({
       datastoreId: datastoreIdForUpload,
       files: selectedFiles,
       tags,
-      onFileProgress: ({
-        clientFileId,
-        percent,
-        bytesSent,
-        total,
-      }: {
-        clientFileId: string
-        percent: number
-        bytesSent: number
-        total?: number | null
-      }) => {
-        // Assumption: uploadFilesToDatastore uses the same clientFileId scheme
-        // used above, or maps to the fileId generated server-side.
+      onFileProgress: ({ fileId, percent, bytesSent, total }) => {
+        // 3) Update progress for the row keyed by fileId
         setFiles((prev) =>
           prev.map((row) =>
-            row.id === clientFileId
-              ? {
-                  ...row,
-                  uploadProgress: percent,
-                  // while upload is happening, label as "uploading"
-                  status: "uploading",
-                }
+            row.id === fileId
+              ? { ...row, uploadProgress: percent, status: "uploading" }
               : row
           )
         )
 
         console.debug(
-          `[upload:${clientFileId}] ${bytesSent}/${
-            total ?? 0
-          } bytes (${percent}%)`
+          `[upload:${fileId}] ${bytesSent}/${total ?? 0} bytes (${percent}%)`
         )
       },
     })
 
-    // 3) Map temp client IDs to real file IDs from backend
-    //    This depends on how uploadFilesToDatastore structures its response.
-    //    Let's assume it returns something like:
-    //    { rawResponse, files: [{ clientFileId, fileId, sizeBytes, filename }] }
-    const uploadedFiles = result?.files ?? []
+    const uploadedFiles: UploadResultFile[] = result?.files ?? []
 
+    // 2) Once we have file IDs, create rows in the grid (status=uploading, progress 0)
     if (uploadedFiles.length) {
-      setFiles((prev) => {
-        const map = new Map<string, FileItem>()
-
-        // Start from existing list
-        prev.forEach((row) => map.set(row.id, row))
-
-        uploadedFiles.forEach((f: any) => {
-          // UploadResultFile has fileId?: string
-          if (!f.fileId) {
-            // If backend somehow didn’t return a fileId, just skip it
-            return
-          }
-
-          const existing = map.get(f.clientFileId)
-          if (existing) {
-            map.delete(f.clientFileId)
-            map.set(f.fileId, {
-              ...existing,
-              id: f.fileId,
-              name: f.filename || existing.name,
-              sizeBytes: f.sizeBytes ?? existing.sizeBytes,
-              // Keep status as "uploading" until backend flips it via subscription
-            })
-          } else {
-            map.set(f.fileId, {
-              id: f.fileId,
-              name: f.filename ?? f.fileId,
-              sizeBytes: f.sizeBytes,
-              status: "uploading",
-            })
-          }
+      const newRows: FileItem[] = uploadedFiles.map(
+        ({ fileId, filename, sizeBytes }) => ({
+          id: fileId,
+          fileId,
+          name: filename || fileId,
+          sizeBytes,
+          status: "uploading",
+          uploadProgress: 0,
+          uploadedAt: new Date(),
         })
+      )
 
-        return Array.from(map.values())
-      })
+      setFiles((prev) => [...newRows, ...prev])
     }
 
-    // 4) Close modal & toast
-    handleCloseUpload()
+    // IMPORTANT: do NOT close the modal from here.
+    // UploadFilesModal will call onClose() after onUpload resolves.
     setSnackbarMessage(
       "Your files are being uploaded. You can track progress here."
     )
     setSnackbarOpen(true)
 
-    // Preserve legacy behavior
-    return result?.rawResponse
+    return result.rawResponse
   }
 
   const chipColors: Record<string, string> = {

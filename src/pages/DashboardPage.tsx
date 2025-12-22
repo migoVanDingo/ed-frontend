@@ -90,7 +90,7 @@ const DashboardPage = () => {
   }
 
   const handleNavDatastore = () => {
-    nav("/dashboard/datastore")
+    nav("/dashboard/datastore/" + currentDatastoreId)
   }
   const handleNavDatastoreSettings = () => {
     nav("/datastore/settings")

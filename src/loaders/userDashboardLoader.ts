@@ -1,6 +1,6 @@
 // loaders/userDashboardLoader.ts
 import { apolloClient } from "../apollo/apolloClient";
-import { DASHBOARD_OVERVIEW_QUERY } from "../graphql/userDashboard";
+import { DASHBOARD_OVERVIEW_QUERY } from "../graphql/query/userDashboard";
 import {
   type DashboardLoaderData,
   type DatastoreSummary,

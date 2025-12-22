@@ -90,8 +90,8 @@ const ProjectList = () => {
     >
       <HeadingBlock
         heading="Project List"
-        subheading="This is a summary of the projects."
-        headingSize="h5"
+        subheading="These are your current projects. Select one to work on, or create a new project."
+        headingSize="h4"
         headingWeight={theme.custom.font.weight.regular}
         subSize="body1"
 

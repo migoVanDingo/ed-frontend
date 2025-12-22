@@ -23,6 +23,7 @@ import DatastoreDashboard from "./pages/DatastoreDashboard";
 import DatasetDashboard from "./pages/DatasetDashboard";
 import ProjectDashboard from "./pages/ProjectDashboard";
 import { userDashboardLoader } from "./loaders/userDashboardLoader";
+import { datastoreDashboardLoader } from "./loaders/datastoreDashboardLoader";
 
 // ─────────────────────────────────────────
 // Auth middleware helpers (utils/auth.ts)
@@ -193,14 +194,10 @@ const router = createBrowserRouter([
             errorElement: <ErrorPage />,
           },
           {
-            path: "datastore",
+            path: "datastore/:datastoreId",
             id: "datastore",
             element: <DatastoreDashboard />,
-            loader: async () => {
-              const token = getToken();
-              const user = token ? decodeToken(token) : null;
-              return { user };
-            },
+            loader: datastoreDashboardLoader,
             action: async () => null,
             errorElement: <ErrorPage />,
           },

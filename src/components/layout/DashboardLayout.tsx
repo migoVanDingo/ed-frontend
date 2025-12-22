@@ -3,10 +3,10 @@ import { Box, Stack } from "@mui/material"
 import { Outlet, useRouteLoaderData } from "react-router-dom"
 import Header from "../functional/header/Header"
 import LeftNavRail from "../functional/header/LeftNavRail"
-import { useDashboardData } from "../../hooks/useDashboardData"
 import { useAppDispatch, useAppSelector } from "../../hooks/reduxHook"
 import type { DashboardLoaderData } from "../../types/dashboard"
 import { setCurrentDatastore } from "../../store/slices/workspaceSlice"
+import WorkspaceModalRoot from "../functional/modals/WorkspaceModalRoot"
 
 const DashboardLayout = () => {
   const dispatch = useAppDispatch()
@@ -54,6 +54,9 @@ const DashboardLayout = () => {
           <Outlet />
         </Box>
       </Stack>
+
+      {/* Global workspace modal */}
+      <WorkspaceModalRoot />
     </Stack>
   )
 }

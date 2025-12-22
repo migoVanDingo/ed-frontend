@@ -8,6 +8,7 @@ import sessionReducer from '../store/slices/sessionSlice';
 import preferencesReducer from '../store/slices/preferencesSlice';
 import workspaceReducer from '../store/slices/workspaceSlice';
 import uiReducer from '../store/slices/uiSlice';
+import modalReducer from '../store/slices/modalSlice'
 
 import { loadPersistedState, savePersistedState } from '../utility/state/statePersistence';
 
@@ -17,6 +18,7 @@ const rootReducer = combineReducers({
   preferences: preferencesReducer,
   workspace: workspaceReducer,
   ui: uiReducer,
+  modal: modalReducer
 });
 
 // 2️⃣ RootState is derived from rootReducer

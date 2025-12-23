@@ -9,12 +9,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHook";
 import { closeModal } from "../../../store/slices/modalSlice";
 import CreateProjectForm from "./CreateProjectForm";
-
-// TODO: replace these with your real form components
-
-const CreateDatasetForm = ({ onClose }: { onClose: () => void }) => {
-  return <div>TODO: Create Dataset Form</div>;
-};
+import CreateDatasetForm from "./CreateDatasetForm";
 
 const CreateOrganizationForm = ({ onClose }: { onClose: () => void }) => {
   return <div>TODO: Create Organization Form</div>;

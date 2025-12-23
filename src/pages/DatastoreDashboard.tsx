@@ -105,7 +105,7 @@ const DatastoreDashboard = () => {
     >
       {/* Row 1 */}
       <Box gridArea="fileExplorer">
-        <FileExplorerWidget />
+        <FileExplorerWidget initialFiles={initialFilesPage} />
       </Box>
 
       <Box gridArea="recentActivity">

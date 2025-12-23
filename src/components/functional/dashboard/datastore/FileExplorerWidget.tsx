@@ -45,12 +45,53 @@ interface FileItem {
   directory?: string
   sizeBytes?: number
   type?: string
-  uploadedAt?: string | Date
+  uploadedAt?: string
   status: FileStatus
   uploadProgress?: number // 0–100, only meaningful while uploading
 }
 
-const FileExplorerWidget = () => {
+type LoaderFileItem = {
+  id: string
+  filename: string
+  contentType?: string | null
+  size?: number | null
+  created_at?: number | string | null
+  status?: FileStatus
+}
+
+type InitialFilesPage =
+  | LoaderFileItem[]
+  | {
+      items: LoaderFileItem[]
+      totalCount?: number
+      limit?: number
+      offset?: number
+    }
+
+const toIsoString = (value: number | string | null | undefined): string | undefined => {
+  if (value == null) return undefined
+  if (typeof value === "number") return new Date(value * 1000).toISOString()
+  const parsed = Date.parse(value)
+  if (Number.isNaN(parsed)) return undefined
+  return new Date(parsed).toISOString()
+}
+
+const normalizeInitialFiles = (initialFiles?: InitialFilesPage): FileItem[] => {
+  if (!initialFiles) return []
+  const items = Array.isArray(initialFiles) ? initialFiles : initialFiles.items
+
+  return items.map((file) => ({
+    id: file.id,
+    fileId: file.id,
+    name: file.filename || file.id,
+    sizeBytes: file.size ?? undefined,
+    type: file.contentType ?? undefined,
+    uploadedAt: toIsoString(file.created_at),
+    status: file.status ?? "ready",
+  }))
+}
+
+const FileExplorerWidget = ({ initialFiles }: { initialFiles?: InitialFilesPage }) => {
   const theme = useTheme()
 
   const data = useRouteLoaderData("dashboard-layout") as
@@ -59,6 +100,8 @@ const FileExplorerWidget = () => {
   const currentDatastoreId = useAppSelector(
     (state) => state.workspace.currentDatastoreId
   )
+
+  console.log('data: ', data)
 
   const datastores = data?.datastores ?? []
 
@@ -70,7 +113,9 @@ const FileExplorerWidget = () => {
   // ──────────────────────────────────────
   // Local state for files in this view
   // ──────────────────────────────────────
-  const [files, setFiles] = useState<FileItem[]>([])
+  const [files, setFiles] = useState<FileItem[]>(
+    normalizeInitialFiles(initialFiles)
+  )
 
   // menu state
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -156,6 +201,10 @@ const FileExplorerWidget = () => {
     })
   }, [subData])
 
+  useEffect(() => {
+    setFiles(normalizeInitialFiles(initialFiles))
+  }, [initialFiles])
+
   if (subError) {
     console.error("fileStatusUpdated subscription error", subError)
   }
@@ -209,7 +258,7 @@ const FileExplorerWidget = () => {
           sizeBytes,
           status: "uploading",
           uploadProgress: 0,
-          uploadedAt: new Date(),
+          uploadedAt: new Date().toISOString(),
         })
       )
 

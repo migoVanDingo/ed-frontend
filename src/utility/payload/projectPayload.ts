@@ -10,8 +10,8 @@ export interface CreateProjectPayload {
   name: string;
   description?: string | null;
   status?: string;
-  datastoreId: string;
-  organizationId?: string;
+  datastore_id: string;
+  organization_id?: string;
 }
 
 /**
@@ -23,18 +23,18 @@ export interface CreateProjectPayload {
 export function buildCreateProjectPayload(
   formValues: CreateProjectFormValues,
   context: {
-    datastoreId: string;
-    organizationId?: string;
+    datastore_id: string;
+    organization_id?: string;
   }
 ): CreateProjectPayload {
   const { name, description, status } = formValues;
-  const { datastoreId, organizationId } = context;
+  const { datastore_id, organization_id } = context;
 
   return {
     name: name.trim(),
     description: description?.trim() || null,
     status: status ?? "active",
-    datastoreId,
-    organizationId,
+    datastore_id,
+    organization_id,
   };
 }

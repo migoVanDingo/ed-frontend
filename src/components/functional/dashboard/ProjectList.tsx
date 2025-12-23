@@ -1,76 +1,92 @@
+import React from "react"
 import { useTheme } from "@mui/material"
 import CustomCard from "../../common/CustomCard"
 import HeadingBlock from "../../common/HeadingBlock"
 import { SStack } from "../../styled/SStack"
 
-const ProjectList = () => {
-    const theme = useTheme()
-  const projects = [
-    {
-      title: "Dataset Collaboration Portal",
-      orgName: "Research Group A",
-      description:
-        "A project to analyze and process student performance datasets.",
-      statusLabel: "Active",
-      statusColor: "success" as const,
-      datasetsCount: 3,
-      lastUpdated: "Aug 10, 2025",
-      accentColor: "accent1" as const,
-    },
-    {
-      title: "Climate Data Visualization",
-      orgName: "Environmental Studies Org",
-      description:
-        "Visualizing climate change data from multiple global sources.",
-      statusLabel: "In Review",
-      statusColor: "warning" as const,
-      datasetsCount: 5,
-      lastUpdated: "Aug 8, 2025",
-      accentColor: "accent2" as const,
-    },
-    {
-      title: "Neuroscience Imaging Project",
-      orgName: "NeuroLab Research",
-      description: "Analyzing brain imaging data to identify neural pathways.",
-      statusLabel: "Archived",
-      statusColor: "default" as const,
-      datasetsCount: 8,
-      lastUpdated: "Jul 30, 2025",
-      accentColor: "accent1" as const,
-    },
-    {
-      title: "Dataset Collaboration Portal",
-      orgName: "Research Group A",
-      description:
-        "A project to analyze and process student performance datasets.",
-      statusLabel: "Active",
-      statusColor: "success" as const,
-      datasetsCount: 3,
-      lastUpdated: "Aug 10, 2025",
-      accentColor: "accent1" as const,
-    },
-    {
-      title: "Climate Data Visualization",
-      orgName: "Environmental Studies Org",
-      description:
-        "Visualizing climate change data from multiple global sources.",
-      statusLabel: "In Review",
-      statusColor: "warning" as const,
-      datasetsCount: 5,
-      lastUpdated: "Aug 8, 2025",
-      accentColor: "accent2" as const,
-    },
-    {
-      title: "Neuroscience Imaging Project",
-      orgName: "NeuroLab Research",
-      description: "Analyzing brain imaging data to identify neural pathways.",
-      statusLabel: "Archived",
-      statusColor: "default" as const,
-      datasetsCount: 8,
-      lastUpdated: "Jul 30, 2025",
-      accentColor: "accent1" as const,
-    },
-  ]
+// Adjust this interface to match your actual dashboard/GraphQL project type
+interface DashboardProject {
+  id: string
+  name: string
+  description?: string | null
+  status?: string | null
+  updatedAt?: string | null
+  createdAt?: string | null
+
+  // org sometimes present, sometimes not
+  organization?: { name?: string | null }
+  orgName?: string | null
+
+  // dataset info
+  datasetsCount?: number | null
+  datasets?: unknown[] | null
+}
+
+interface ProjectListProps {
+  projects: DashboardProject[]
+}
+
+const ProjectList: React.FC<ProjectListProps> = ({ projects }) => {
+  const theme = useTheme()
+
+  console.log('projs: ', projects)
+
+  const getStatusColor = (
+    status?: string | null
+  ):
+    | "default"
+    | "primary"
+    | "secondary"
+    | "error"
+    | "info"
+    | "success"
+    | "warning" => {
+    const s = status?.toLowerCase().trim()
+    switch (s) {
+      case "active":
+        return "success"
+      case "archived":
+        return "default"
+      case "in_review":
+      case "in review":
+      case "pending":
+        return "warning"
+      default:
+        return "info"
+    }
+  }
+
+  const getStatusLabel = (status?: string | null): string => {
+    if (!status) return "Unknown"
+    return status
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  }
+
+  const formatDate = (iso?: string | null): string => {
+    if (!iso) return "Not updated yet"
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return "Not updated yet"
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+
+  const getDatasetsCount = (project: DashboardProject): number => {
+    if (typeof project.datasetsCount === "number") return project.datasetsCount
+    if (Array.isArray(project.datasets)) return project.datasets.length
+    return 0
+  }
+
+  const getOrgName = (project: DashboardProject): string => {
+    return (
+      project.organization?.name ??
+      project.orgName ??
+      "No organization specified"
+    )
+  }
 
   return (
     <SStack
@@ -84,8 +100,8 @@ const ProjectList = () => {
       noBorder
       expand
       sx={{
-        overflowY: "auto", // ✅ scrollable
-        maxHeight: "100%", // ✅ keep within parent
+        overflowY: "auto",
+        maxHeight: "100%",
       }}
     >
       <HeadingBlock
@@ -94,17 +110,45 @@ const ProjectList = () => {
         headingSize="h4"
         headingWeight={theme.custom.font.weight.regular}
         subSize="body1"
-
       />
 
-      {projects.map((project, index) => (
+      {projects.length === 0 && (
         <CustomCard
-          key={project.title + index}
-          {...project}
-          onOpen={() => console.log(`Open ${project.title}`)}
-          onSettings={() => console.log(`Settings for ${project.title}`)}
-          onMenuClick={() => console.log(`Menu for ${project.title}`)}
-          height={1000}
+          title="No projects yet"
+          orgName="—"
+          description="Create your first project to get started."
+          statusLabel=""
+          statusColor="default"
+          datasetsCount={0}
+          lastUpdated="—"
+          accentColor="accent1"
+          onOpen={() => {}}
+          onSettings={() => {}}
+          onMenuClick={() => {}}
+          disableShadow
+        />
+      )}
+
+      {projects.map((project) => (
+        <CustomCard
+          key={project.id}
+          title={project.name} // DB 'name' → card 'title'
+          orgName={getOrgName(project)} // handles missing org
+          description={project.description ?? "No description yet."}
+          statusLabel={getStatusLabel(project.status)}
+          statusColor={getStatusColor(project.status)}
+          datasetsCount={getDatasetsCount(project)}
+          lastUpdated={formatDate(project.updatedAt ?? project.createdAt)}
+          accentColor="accent1"
+          onOpen={() =>
+            console.log(`Open project ${project.id} - ${project.name}`)
+          }
+          onSettings={() =>
+            console.log(`Settings for project ${project.id} - ${project.name}`)
+          }
+          onMenuClick={() =>
+            console.log(`Menu for project ${project.id} - ${project.name}`)
+          }
         />
       ))}
     </SStack>

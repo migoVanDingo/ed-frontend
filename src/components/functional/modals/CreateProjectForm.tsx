@@ -1,10 +1,9 @@
+// CreateProjectForm.tsx
 import React, { useState } from "react"
 import { Box, Button, Stack, TextField, Typography, Alert } from "@mui/material"
 import { useTheme } from "@mui/material/styles"
 import { useAppSelector } from "../../../hooks/reduxHook"
-import {
-  buildCreateProjectPayload,
-} from "../../../utility/payload/projectPayload"
+import { buildCreateProjectPayload } from "../../../utility/payload/projectPayload"
 import { ProjectAPI } from "../../../api/ProjectApi"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -13,15 +12,21 @@ import {
   projectSchema,
   type ProjectFormValues,
 } from "../../../forms/schema/project.schema"
+import { useRevalidator } from "react-router-dom"   // 🔹 add this
 
 interface CreateProjectFormProps {
   onClose: () => void
-  // later you can pass an onSuccess or similar if you want
+  onSuccess?: () => void     // optional, keep for future (toasts, etc.)
 }
 
-const CreateProjectForm: React.FC<CreateProjectFormProps> = ({ onClose }) => {
+const CreateProjectForm: React.FC<CreateProjectFormProps> = ({
+  onClose,
+  onSuccess,
+}) => {
   const theme = useTheme()
   const accent = theme.palette["accent1"] as any
+
+  const revalidator = useRevalidator()  // 🔹 get revalidator for current route branch
 
   const currentDatastoreId = useAppSelector(
     (state) => state.workspace.currentDatastoreId
@@ -52,8 +57,8 @@ const CreateProjectForm: React.FC<CreateProjectFormProps> = ({ onClose }) => {
       const payload = buildCreateProjectPayload(
         { ...data, status: "active" },
         {
-        datastoreId: currentDatastoreId,
-        organizationId: currentOrgId,
+          datastore_id: currentDatastoreId,
+          organization_id: currentOrgId,
         }
       )
 
@@ -64,9 +69,14 @@ const CreateProjectForm: React.FC<CreateProjectFormProps> = ({ onClose }) => {
       }
       console.log("Create project payload:", payload)
 
-      // If successful:
+      // 🔁 Re-run loaders for the current route branch (includes dashboard-layout)
+      revalidator.revalidate()
+
+      // optional callback back up to layout if you want
+      onSuccess?.()
+
+      // then close modal
       onClose()
-      // Optionally: show a toast, rely on subscription to update list
     } catch (err: any) {
       console.error(err)
       setError("Something went wrong while creating the project.")
@@ -111,16 +121,6 @@ const CreateProjectForm: React.FC<CreateProjectFormProps> = ({ onClose }) => {
         error={Boolean(methods.formState.errors.description)}
         helperText={methods.formState.errors.description?.message}
       />
-
-      {/* Optional status field if you want to expose it now.
-          Otherwise, just keep it default "active" in state/payload.
-      */}
-      {/* <TextField
-        label="Status"
-        value={values.status}
-        onChange={handleChange("status")}
-        fullWidth
-      /> */}
 
       <Stack
         direction="row"

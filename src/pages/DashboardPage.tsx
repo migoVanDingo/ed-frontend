@@ -154,7 +154,7 @@ const DashboardPage = () => {
           height: "100%",
         }}
       >
-        <ProjectList />
+        <ProjectList projects={projects}/>
       </Grid>
 
       {/* Column 3 */}

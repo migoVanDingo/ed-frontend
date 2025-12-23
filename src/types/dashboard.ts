@@ -26,6 +26,7 @@ export type ProjectSummary = {
   id: string;
   name: string;
   description?: string | null;
+  status: string;
   created_at: number;
 };
 

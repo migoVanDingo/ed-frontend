@@ -38,6 +38,7 @@ export const DASHBOARD_OVERVIEW_QUERY = gql`
       projects {
         id
         name
+        status
         description
         createdAt
       }

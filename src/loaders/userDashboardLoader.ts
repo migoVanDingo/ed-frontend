@@ -30,6 +30,7 @@ type DashboardOverviewQueryResult = {
     projects: {
       id: string;
       name: string;
+      status: string;
       description?: string | null;
       createdAt: string;
     }[];
@@ -54,6 +55,7 @@ export async function userDashboardLoader(): Promise<DashboardLoaderData> {
   try {
     const { data } = await apolloClient.query<DashboardOverviewQueryResult>({
       query: DASHBOARD_OVERVIEW_QUERY,
+      fetchPolicy: "network-only", 
     });
 
     if (!data?.me) {
@@ -74,6 +76,7 @@ export async function userDashboardLoader(): Promise<DashboardLoaderData> {
     const projects: ProjectSummary[] = (me.projects ?? []).map((proj) => ({
       id: proj.id,
       name: proj.name,
+      status: proj.status,
       description: proj.description,
       created_at: toEpochSeconds(proj.createdAt),
     }));

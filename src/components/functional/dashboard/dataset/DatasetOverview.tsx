@@ -14,29 +14,18 @@ import { useTheme } from "@mui/material/styles"
 import HeadingBlock from "../../../common/HeadingBlock"
 import { SStack } from "../../../styled/SStack"
 import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
+import type { DatasetSummary } from "../../../../types/dashboard"
 
-const DatasetOverview = () => {
+type DatasetOverviewProps = {
+  datasets: DatasetSummary[]
+}
+
+const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
   const theme = useTheme()
 
-  // Mock data
-  const totalDatasets = 12
-  const datastoreFiles = 100
-  const datasetFiles = 60
-  const utilization = (datasetFiles / datastoreFiles) * 100
-
-  const recentDatasets = [
-    {
-      name: "Student Scores Dataset",
-      files: 15,
-      updated: "2025-08-10T14:00:00Z",
-    },
-    { name: "Climate Data v2", files: 22, updated: "2025-08-08T09:30:00Z" },
-    {
-      name: "Imaging Subset with a Really Long Name That Should Truncate",
-      files: 8,
-      updated: "2025-07-30T18:45:00Z",
-    },
-  ]
+  const totalDatasets = datasets.length
+  const utilization = 0
+  const recentDatasets = datasets.slice(0, 5)
 
   return (
     <SStack
@@ -94,13 +83,12 @@ const DatasetOverview = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
-                <TableCell align="right">Files</TableCell>
-                <TableCell align="right">Updated</TableCell>
+                <TableCell align="right">Created</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {recentDatasets.map((ds, idx) => (
-                <TableRow key={idx}>
+              {recentDatasets.map((ds) => (
+                <TableRow key={ds.id}>
                   <TableCell
                     sx={{
                       maxWidth: 200,
@@ -111,10 +99,18 @@ const DatasetOverview = () => {
                   >
                     {ds.name}
                   </TableCell>
-                  <TableCell align="right">{ds.files}</TableCell>
-                  <TableCell align="right">{formatRelativeTime(ds.updated)}</TableCell>
+                  <TableCell align="right">
+                    {formatRelativeTime(new Date(ds.created_at * 1000).toISOString())}
+                  </TableCell>
                 </TableRow>
               ))}
+              {!recentDatasets.length && (
+                <TableRow>
+                  <TableCell colSpan={2} align="center">
+                    No datasets yet.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

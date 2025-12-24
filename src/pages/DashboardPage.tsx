@@ -141,7 +141,7 @@ const DashboardPage = () => {
             },
           ]}
         />
-        <DatasetOverview />
+        <DatasetOverview datasets={datasets} />
       </Grid>
 
       {/* Column 2 */}

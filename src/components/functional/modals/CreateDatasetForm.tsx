@@ -4,13 +4,16 @@ import { useTheme } from "@mui/material/styles"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@apollo/client"
-import { useAppSelector } from "../../../hooks/reduxHook"
+import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHook"
 import {
   defaultDatasetValues,
   datasetSchema,
   type DatasetFormValues,
 } from "../../../forms/schema/dataset.schema"
 import { CREATE_DATASET_MUTATION } from "../../../graphql/query/datasetQuery"
+import { useNavigate } from "react-router-dom"
+import { set } from "zod"
+import { setCurrentDataset } from "../../../store/slices/workspaceSlice"
 
 interface CreateDatasetFormProps {
   onClose: () => void
@@ -21,6 +24,8 @@ const CreateDatasetForm: React.FC<CreateDatasetFormProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const nav = useNavigate()
+  const dispatch = useAppDispatch()
   const theme = useTheme()
   const accent = theme.palette["accent1"] as any
 
@@ -50,7 +55,7 @@ const CreateDatasetForm: React.FC<CreateDatasetFormProps> = ({
     }
 
     try {
-      await createDataset({
+      const response = await createDataset({
         variables: {
           input: {
             datastoreId: currentDatastoreId,
@@ -63,6 +68,10 @@ const CreateDatasetForm: React.FC<CreateDatasetFormProps> = ({
 
       onSuccess?.()
       onClose()
+      const { createDataset: responseData } = response.data as any
+      const newDatasetId = responseData.id
+      dispatch(setCurrentDataset(newDatasetId))
+      nav(`/dashboard/dataset/${newDatasetId}/edit`)
     } catch (err) {
       console.error(err)
       setError("Something went wrong while creating the dataset.")

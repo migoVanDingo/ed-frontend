@@ -15,6 +15,7 @@ import HeadingBlock from "../../../common/HeadingBlock"
 import { SStack } from "../../../styled/SStack"
 import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
 import type { DatasetSummary } from "../../../../types/dashboard"
+import { useNavigate } from "react-router-dom"
 
 type DatasetOverviewProps = {
   datasets: DatasetSummary[]
@@ -22,6 +23,7 @@ type DatasetOverviewProps = {
 
 const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
   const theme = useTheme()
+  const nav = useNavigate()
 
   const totalDatasets = datasets.length
   const utilization = 0
@@ -83,6 +85,7 @@ const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
+                <TableCell align="right">Size</TableCell>
                 <TableCell align="right">Created</TableCell>
               </TableRow>
             </TableHead>
@@ -97,8 +100,25 @@ const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
                       textOverflow: "ellipsis",
                     }}
                   >
-                    {ds.name}
+                    <Button
+                      variant="text"
+                      onClick={() => nav(`/dashboard/dataset/${ds.id}`)}
+                      sx={{
+                        padding: 0,
+                        minWidth: "auto",
+                        textTransform: "none",
+                        justifyContent: "flex-start",
+                        color: theme.palette.accent2.vibrant,
+                        "&:hover": {
+                          backgroundColor: "transparent",
+                          color: theme.palette.accent2.dim,
+                        },
+                      }}
+                    >
+                      {ds.name}
+                    </Button>
                   </TableCell>
+                  <TableCell align="right">--</TableCell>
                   <TableCell align="right">
                     {formatRelativeTime(new Date(ds.created_at * 1000).toISOString())}
                   </TableCell>
@@ -106,7 +126,7 @@ const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
               ))}
               {!recentDatasets.length && (
                 <TableRow>
-                  <TableCell colSpan={2} align="center">
+                  <TableCell colSpan={3} align="center">
                     No datasets yet.
                   </TableCell>
                 </TableRow>

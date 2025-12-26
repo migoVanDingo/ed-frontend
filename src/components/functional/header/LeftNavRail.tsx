@@ -72,7 +72,7 @@ function RailLinkButton({
 
 export default function LeftNavRail({ onSignOut }: LeftNavRailProps) {
   const navigate = useNavigate()
-
+  const theme = useTheme()
   const handleSignOut = () => {
     if (onSignOut) return onSignOut()
     // fallback: navigate to a sign-out route if you have one
@@ -83,21 +83,18 @@ export default function LeftNavRail({ onSignOut }: LeftNavRailProps) {
     <Box
       component="nav"
       sx={{
-        position: "sticky",
-        top: 0,
-        height: "100dvh",
+        position: "relative",
+        height: `calc(100dvh - ${theme.custom.component.header.height}px)`,
         width: railWidth,
+        flexShrink: 0,
+        alignSelf: "stretch",
         borderRight: 1,
         borderColor: "divider",
         bgcolor: "background.paper",
         zIndex: (t) => t.zIndex.appBar - 1, // stay under your Header if it’s fixed
       }}
     >
-      <Stack
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ height: "100%" }}
-      >
+      <Stack alignItems="center" sx={{ height: `calc(100dvh - ${theme.custom.component.header.height}px)`, justifyContent: "space-between" }}>
         {/* Top cluster */}
         <Stack alignItems="center" sx={{ pt: 1 }}>
           <RailLinkButton
@@ -124,7 +121,7 @@ export default function LeftNavRail({ onSignOut }: LeftNavRailProps) {
         </Stack>
 
         {/* Bottom cluster */}
-        <Stack alignItems="center" sx={{ pb: 1 }}>
+        <Stack alignItems="center" sx={{ mt: "auto", pb: 1 }}>
           <RailLinkButton
             to="/settings"
             label="Settings"

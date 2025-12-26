@@ -71,5 +71,6 @@ export const {
   setCurrentProject,
   setCurrentDataset,
 } = workspaceSlice.actions;
+export const workspaceActions = workspaceSlice.actions;
 
 export default workspaceSlice.reducer;

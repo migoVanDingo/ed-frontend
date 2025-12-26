@@ -1,8 +1,9 @@
 import React from "react"
 import { useTheme } from "@mui/material"
-import CustomCard from "../../common/CustomCard"
-import HeadingBlock from "../../common/HeadingBlock"
-import { SStack } from "../../styled/SStack"
+import CustomCard from "../../../common/CustomCard"
+import HeadingBlock from "../../../common/HeadingBlock"
+import { SStack } from "../../../styled/SStack"
+import { useNavigate } from "react-router-dom"
 
 // Adjust this interface to match your actual dashboard/GraphQL project type
 interface DashboardProject {
@@ -28,6 +29,7 @@ interface ProjectListProps {
 
 const ProjectList: React.FC<ProjectListProps> = ({ projects }) => {
   const theme = useTheme()
+  const navigate = useNavigate()
 
   console.log('projs: ', projects)
 
@@ -140,9 +142,8 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects }) => {
           datasetsCount={getDatasetsCount(project)}
           lastUpdated={formatDate(project.updatedAt ?? project.createdAt)}
           accentColor="accent1"
-          onOpen={() =>
-            console.log(`Open project ${project.id} - ${project.name}`)
-          }
+          onOpen={() => navigate(`/dashboard/project/${project.id}`)}
+          onTitleClick={() => navigate(`/dashboard/project/${project.id}`)}
           onSettings={() =>
             console.log(`Settings for project ${project.id} - ${project.name}`)
           }

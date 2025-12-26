@@ -1,6 +1,6 @@
 import React, { useEffect } from "react"
 import Grid from "@mui/material/Grid"
-import ProjectList from "../components/functional/dashboard/ProjectList"
+import ProjectList from "../components/functional/dashboard/project/ProjectList"
 import LLMWidget from "../components/functional/dashboard/llm-widget/LLMWidget"
 import DatastoreOverview from "../components/functional/dashboard/datastore/DatastoreOverview"
 import DatasetOverview from "../components/functional/dashboard/dataset/DatasetOverview"

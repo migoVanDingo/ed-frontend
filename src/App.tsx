@@ -21,9 +21,14 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import AcceptInvite from "./pages/AcceptInvite";
 import DatastoreDashboard from "./pages/DatastoreDashboard";
 import DatasetDashboard from "./pages/DatasetDashboard";
+import DatasetDetailPage from "./pages/DatasetDetailPage";
+import { datasetDetailLoader } from "./loaders/datasetDetailLoader";
 import ProjectDashboard from "./pages/ProjectDashboard";
+import ProjectWorkspacePage from "./pages/ProjectWorkspacePage";
 import { userDashboardLoader } from "./loaders/userDashboardLoader";
 import { datastoreDashboardLoader } from "./loaders/datastoreDashboardLoader";
+import DatasetEditPage from "./pages/DatasetEditPage";
+import { datasetEditLoader } from "./loaders/datasetEditLoader";
 
 // ─────────────────────────────────────────
 // Auth middleware helpers (utils/auth.ts)
@@ -185,11 +190,23 @@ const router = createBrowserRouter([
             path: "dataset",
             id: "dataset",
             element: <DatasetDashboard />,
-            loader: async () => {
-              const token = getToken();
-              const user = token ? decodeToken(token) : null;
-              return { user };
-            },
+            loader: async () => {},
+            action: async () => null,
+            errorElement: <ErrorPage />,
+          },
+          {
+            path: "dataset/:datasetId",
+            id: "dataset-detail",
+            element: <DatasetDetailPage />,
+            loader: datasetDetailLoader,
+            action: async () => null,
+            errorElement: <ErrorPage />,
+          },
+          {
+            path: "dataset/:datasetId/edit",
+            id: "dataset-edit",
+            element: <DatasetEditPage />,
+            loader: datasetEditLoader,
             action: async () => null,
             errorElement: <ErrorPage />,
           },
@@ -210,6 +227,14 @@ const router = createBrowserRouter([
               const user = token ? decodeToken(token) : null;
               return { user };
             },
+            action: async () => null,
+            errorElement: <ErrorPage />,
+          },
+          {
+            path: "project/:projectId",
+            id: "project-workspace",
+            element: <ProjectWorkspacePage />,
+            loader: async () => null,
             action: async () => null,
             errorElement: <ErrorPage />,
           },

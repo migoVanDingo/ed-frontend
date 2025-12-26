@@ -29,6 +29,7 @@ interface CustomCardProps {
   onOpen?: () => void
   onSettings?: () => void
   onMenuClick?: () => void
+  onTitleClick?: () => void
   accentColor?: keyof Theme["palette"] // e.g. "accent1" | "accent2" | "primary"
   borderRadius?: keyof Theme["custom"]["radii"]
   disableShadow?: boolean
@@ -49,6 +50,7 @@ const CustomCard: React.FC<CustomCardProps> = ({
   onOpen,
   onSettings,
   onMenuClick,
+  onTitleClick,
   accentColor = "accent1",
   borderRadius = "xs",
   disableShadow = false,
@@ -95,7 +97,18 @@ const CustomCard: React.FC<CustomCardProps> = ({
         </Stack>
 
         {/* Project Title */}
-        <Typography variant="h6" gutterBottom>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{
+            cursor: onTitleClick ? "pointer" : "default",
+            color: onTitleClick ? accent?.vibrant : "inherit",
+            "&:hover": onTitleClick
+              ? { color: accent?.dim }
+              : undefined,
+          }}
+          onClick={onTitleClick}
+        >
           {title}
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>

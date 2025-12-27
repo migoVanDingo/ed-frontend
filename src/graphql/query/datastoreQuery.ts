@@ -12,6 +12,8 @@ export const DATASTORE_FILES_QUERY = gql`
           contentType
           size
           createdAt
+          tags
+          clientToken
         }
         totalCount
         limit

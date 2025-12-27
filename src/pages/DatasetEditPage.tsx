@@ -101,6 +101,7 @@ const DatasetEditPage = () => {
   const [selectedDatastoreIds, setSelectedDatastoreIds] = useState<string[]>([])
   const [selectedDatasetIds, setSelectedDatasetIds] = useState<string[]>([])
 
+  console.log('loaderData:', loaderData)
   useEffect(() => {
     const datastoreItems = loaderData.datastoreFiles ?? []
     const datasetItemFiles = (loaderData.datasetItems ?? []).map((item) => {

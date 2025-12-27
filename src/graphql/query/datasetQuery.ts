@@ -8,11 +8,10 @@ export const DATASET_EDIT_QUERY = gql`
       name
       description
       datastoreId
-      items {
+      fileLinks {
         id
         fileId
-        createdAt
-        status
+        role
       }
     }
   }
@@ -25,15 +24,15 @@ export const DATASET_DETAIL_QUERY = gql`
       name
       description
       datastoreId
-      items {
+      fileLinks {
         id
         fileId
-        createdAt
-        status
+        role
       }
     }
   }
 `;
+
 
 export const PROJECT_DATASETS_QUERY = gql`
   query ProjectWithDatasets($projectId: ID!) {

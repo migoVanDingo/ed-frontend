@@ -9,6 +9,7 @@ import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined"
 import DatasetOutlinedIcon from "@mui/icons-material/DatasetOutlined"
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined"
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined"
+import { useAppSelector } from "../../../hooks/reduxHook"
 
 type LeftNavRailProps = {
   onSignOut?: () => void
@@ -21,15 +22,18 @@ function RailLinkButton({
   to,
   label,
   icon,
+  end,
 }: {
   to: string
   label: string
   icon: React.ReactNode
+  end?: boolean
 }) {
   const theme = useTheme()
   return (
     <NavLink
       to={to}
+      end={end}
       className={({ isActive }: { isActive: boolean }) =>
         isActive ? "active" : undefined
       }
@@ -73,6 +77,11 @@ function RailLinkButton({
 export default function LeftNavRail({ onSignOut }: LeftNavRailProps) {
   const navigate = useNavigate()
   const theme = useTheme()
+
+  const currentDatastoreId = useAppSelector(
+    (state) => state.workspace.currentDatastoreId
+  ) as string | null
+
   const handleSignOut = () => {
     if (onSignOut) return onSignOut()
     // fallback: navigate to a sign-out route if you have one
@@ -101,10 +110,11 @@ export default function LeftNavRail({ onSignOut }: LeftNavRailProps) {
             to="/dashboard"
             label="Home"
             icon={<HomeOutlinedIcon />}
+            end
           />
 
           <RailLinkButton
-            to={"/dashboard/datastore"}
+            to={"/dashboard/datastore/" + (currentDatastoreId || "")}
             label="Datastore"
             icon={<StorageOutlinedIcon />}
           />

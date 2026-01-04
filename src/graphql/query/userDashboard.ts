@@ -1,4 +1,4 @@
-import { gql } from "@apollo/client";
+import { gql } from "@apollo/client"
 
 export const DASHBOARD_OVERVIEW_QUERY = gql`
   query DashboardOverview {
@@ -26,6 +26,8 @@ export const DASHBOARD_OVERVIEW_QUERY = gql`
           usedPercent
           fileCount
           lastUploadAt
+          likes
+          shares
           byCategory {
             category
             contentTypes
@@ -48,7 +50,17 @@ export const DASHBOARD_OVERVIEW_QUERY = gql`
         name
         description
         createdAt
+        metrics {
+          fileCount
+          totalBytes
+          projectUsageCount
+          versionCount
+          collaboratorCount
+          likes
+          shares
+          updatedAt
+        }
       }
     }
   }
-`;
+`

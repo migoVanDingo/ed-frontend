@@ -5,7 +5,7 @@ export type DashboardLoaderData = {
   datastores: DatastoreSummary[];
   organizations: OrganizationSummary[];
   projects: ProjectSummary[];
-  user: DashboardUserSummary;   // ⬅️ changed from UserSummary
+  user: DashboardUserSummary;
 };
 
 export type DatasetSummary = {
@@ -13,8 +13,21 @@ export type DatasetSummary = {
   name: string;
   description?: string | null;
   created_at: number; // epoch seconds from backend
+  metrics?: DatasetMetrics | null; // ✅ NEW
 };
 
+export type DatasetMetrics = {
+  fileCount: number;
+  totalBytes: number;
+  projectUsageCount: number;
+  versionCount: number;
+  collaboratorCount: number;
+  likes: number;
+  shares: number;
+  updatedAt: number; // epoch seconds
+};
+
+// ...rest unchanged
 export type OrganizationSummary = {
   id: string;
   name: string;
@@ -34,7 +47,7 @@ export type DatastoreSummary = {
   id: string;
   name: string;
   description?: string | null;
-  created_at?: number; // include if you requested it in GraphQL
+  created_at?: number;
   metrics: DatastoreMetrics;
 };
 
@@ -43,14 +56,16 @@ export type DatastoreMetrics = {
   usedBytes: number;
   freeBytes: number | null;
   usedPercent: number | null;
+  likes: number;
+  shares: number;
   fileCount: number;
-  lastUploadAt: string | null; // ISO datetime from GraphQL
+  lastUploadAt: string | null;
   byCategory: DatastoreCategoryBreakdown[];
 };
 
 export type DatastoreCategoryBreakdown = {
-  category: string;        // "csv", "json", "mp4", "wav", "video", "audio", "other"
-  contentTypes: string[];  // underlying MIME types
+  category: string;
+  contentTypes: string[];
   fileCount: number;
   totalBytes: number;
 };
@@ -67,10 +82,10 @@ export type UserSummary = {
   email: string;
   username: string;
   idp_uid: string;
-  status: string;        // "pending", ...
+  status: string;
   is_active: boolean;
   is_verified: boolean;
-  created_at: number;    // epoch seconds
+  created_at: number;
   updated_at: number;
   deleted_at: number | null;
 };

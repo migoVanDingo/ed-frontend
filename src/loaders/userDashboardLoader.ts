@@ -14,12 +14,14 @@ type DashboardOverviewQueryResult = {
     id: string;
     email: string;
     displayName?: string | null;
+
     organizations: {
       id: string;
       name: string;
       description?: string | null;
-      createdAt: string; // ISO from GraphQL
+      createdAt: string; // ISO
     }[];
+
     datastores: {
       id: string;
       name: string;
@@ -27,25 +29,37 @@ type DashboardOverviewQueryResult = {
       createdAt?: string | null;
       metrics: DatastoreSummary["metrics"];
     }[];
+
     projects: {
       id: string;
       name: string;
       status: string;
       description?: string | null;
-      createdAt: string;
+      createdAt: string; // ISO
     }[];
+
     datasets: {
       id: string;
       name: string;
       description?: string | null;
-      createdAt: string;
+      createdAt: string; // ISO
+      metrics?: {
+        fileCount: number;
+        totalBytes: number;
+        projectUsageCount: number;
+        versionCount: number;
+        collaboratorCount: number;
+        likes: number;
+        shares: number;
+        updatedAt: string; // ISO from GraphQL
+      } | null;
     }[];
   };
 };
 
 const toEpochSeconds = (value: string | number | null | undefined): number => {
   if (value == null) return 0;
-  if (typeof value === "number") return value; // already epoch seconds
+  if (typeof value === "number") return value;
   const ms = Date.parse(value);
   if (Number.isNaN(ms)) return 0;
   return Math.floor(ms / 1000);
@@ -53,10 +67,15 @@ const toEpochSeconds = (value: string | number | null | undefined): number => {
 
 export async function userDashboardLoader(): Promise<DashboardLoaderData> {
   try {
-    const { data } = await apolloClient.query<DashboardOverviewQueryResult>({
+    const { data, errors } = await apolloClient.query<DashboardOverviewQueryResult>({
       query: DASHBOARD_OVERVIEW_QUERY,
-      fetchPolicy: "network-only", 
+      fetchPolicy: "network-only",
     });
+
+    if (errors?.length) {
+      console.error("DashboardOverview GraphQL errors:", errors);
+      throw new Response(errors[0].message, { status: 500 });
+    }
 
     if (!data?.me) {
       throw new Response("Failed to load dashboard data", { status: 401 });
@@ -86,15 +105,25 @@ export async function userDashboardLoader(): Promise<DashboardLoaderData> {
       name: ds.name,
       description: ds.description,
       created_at: toEpochSeconds(ds.createdAt),
+      metrics: ds.metrics
+        ? {
+            fileCount: ds.metrics.fileCount ?? 0,
+            totalBytes: ds.metrics.totalBytes ?? 0,
+            projectUsageCount: ds.metrics.projectUsageCount ?? 0,
+            versionCount: ds.metrics.versionCount ?? 0,
+            collaboratorCount: ds.metrics.collaboratorCount ?? 0,
+            likes: ds.metrics.likes ?? 0,
+            shares: ds.metrics.shares ?? 0,
+            updatedAt: toEpochSeconds(ds.metrics.updatedAt),
+          }
+        : null,
     }));
 
     const datastores: DatastoreSummary[] = (me.datastores ?? []).map((ds) => ({
       id: ds.id,
       name: ds.name,
       description: ds.description,
-      created_at: ds.createdAt
-        ? toEpochSeconds(ds.createdAt)
-        : undefined,
+      created_at: ds.createdAt ? toEpochSeconds(ds.createdAt) : undefined,
       metrics: ds.metrics,
     }));
 

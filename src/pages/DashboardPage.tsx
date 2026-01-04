@@ -141,7 +141,7 @@ const DashboardPage = () => {
             },
           ]}
         />
-        <DatasetOverview datasets={datasets} />
+        <DatasetOverview datasets={datasets} datastore={currentDatastore} />
       </Grid>
 
       {/* Column 2 */}

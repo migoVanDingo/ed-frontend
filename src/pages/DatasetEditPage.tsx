@@ -18,6 +18,8 @@ import DatasetFilesPicker from "../components/functional/dataset/DatasetFilesPic
 import { SStack } from "../components/styled/SStack"
 import HeadingBlock from "../components/common/HeadingBlock"
 import { useLoaderData } from "react-router-dom"
+import { apolloClient } from "../apollo/apolloClient"
+import { ADD_FILES_TO_DATASET_MUTATION } from "../graphql/query/datasetQuery"
 
 type PickerFile = {
   id: string
@@ -137,12 +139,20 @@ const DatasetEditPage = () => {
     [datasetFiles]
   )
 
-  const handleAddToDataset = () => {
+  const handleAddToDataset = async () => {
     if (!selectedDatastoreIds.length) return
     const selectedSet = new Set(selectedDatastoreIds)
     const toAdd = datastoreFiles.filter((file) => selectedSet.has(file.id))
     if (!toAdd.length) return
 
+    const response = await apolloClient.mutate({
+      mutation: ADD_FILES_TO_DATASET_MUTATION,
+      variables: {
+        datasetId: loaderData.dataset.id,
+        fileIds: selectedDatastoreIds,
+      },
+    })
+    console.log('Add files to dataset response:', response)
     const dedupedAdd = toAdd.filter((file) => !datasetIdSet.has(file.id))
     setDatasetFiles((prev) => [...dedupedAdd, ...prev])
     setDatastoreFiles((prev) =>

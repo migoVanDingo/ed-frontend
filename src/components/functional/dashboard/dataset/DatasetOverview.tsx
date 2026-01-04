@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import Card from "@mui/material/Card"
 import CardContent from "@mui/material/CardContent"
 import Typography from "@mui/material/Typography"
@@ -14,20 +14,54 @@ import { useTheme } from "@mui/material/styles"
 import HeadingBlock from "../../../common/HeadingBlock"
 import { SStack } from "../../../styled/SStack"
 import { formatRelativeTime } from "../../../../utility/formatter/timeHelper"
+import { formatBytes } from "../../../../utility/formatter/byteHelper"
 import type { DatasetSummary } from "../../../../types/dashboard"
+import type { DatastoreSummary } from "../../../../types/dashboard"
 import { useNavigate } from "react-router-dom"
 
 type DatasetOverviewProps = {
   datasets: DatasetSummary[]
+  datastore?: DatastoreSummary | null
 }
 
-const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
+const DatasetOverview = ({ datasets, datastore }: DatasetOverviewProps) => {
   const theme = useTheme()
   const nav = useNavigate()
 
   const totalDatasets = datasets.length
-  const utilization = 0
   const recentDatasets = datasets.slice(0, 5)
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!recentDatasets.length) {
+      setSelectedDatasetId(null)
+      return
+    }
+    if (!selectedDatasetId) {
+      setSelectedDatasetId(recentDatasets[0].id)
+      return
+    }
+    const stillVisible = recentDatasets.some((ds) => ds.id === selectedDatasetId)
+    if (!stillVisible) {
+      setSelectedDatasetId(recentDatasets[0].id)
+    }
+  }, [recentDatasets, selectedDatasetId])
+
+  const selectedDataset = useMemo(
+    () =>
+      recentDatasets.find((ds) => ds.id === selectedDatasetId) ??
+      recentDatasets[0],
+    [recentDatasets, selectedDatasetId]
+  )
+
+  const utilization = useMemo(() => {
+    const capacity = datastore?.metrics?.capacityBytes
+    const totalBytes = selectedDataset?.metrics?.totalBytes
+    if (!capacity || totalBytes == null) return null
+    const raw = (totalBytes / capacity) * 100
+    if (Number.isNaN(raw) || !Number.isFinite(raw)) return null
+    return Math.min(100, Math.max(0, raw)) < 1 ? 1 : Math.min(100, Math.max(0, raw))
+  }, [datastore, selectedDataset])
 
   return (
     <SStack
@@ -59,11 +93,12 @@ const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
             Total Datasets: {totalDatasets}
           </Typography>
           <Typography variant="body2" gutterBottom>
-            Utilization: {Math.round(utilization)}% of datastore
+            Utilization:{" "}
+            {utilization != null ? Math.round(utilization) : "0"}% of storage
           </Typography>
           <LinearProgress
             variant="determinate"
-            value={utilization}
+            value={utilization ?? 0}
             sx={{
               height: 8,
               borderRadius: 5,
@@ -91,7 +126,12 @@ const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
             </TableHead>
             <TableBody>
               {recentDatasets.map((ds) => (
-                <TableRow key={ds.id}>
+                <TableRow
+                  key={ds.id}
+                  hover
+                  onClick={() => setSelectedDatasetId(ds.id)}
+                  sx={{ cursor: "pointer" }}
+                >
                   <TableCell
                     sx={{
                       maxWidth: 200,
@@ -118,7 +158,11 @@ const DatasetOverview = ({ datasets }: DatasetOverviewProps) => {
                       {ds.name}
                     </Button>
                   </TableCell>
-                  <TableCell align="right">--</TableCell>
+                  <TableCell align="right">
+                    {ds.metrics?.totalBytes != null
+                      ? formatBytes(ds.metrics.totalBytes)
+                      : "--"}
+                  </TableCell>
                   <TableCell align="right">
                     {formatRelativeTime(new Date(ds.created_at * 1000).toISOString())}
                   </TableCell>

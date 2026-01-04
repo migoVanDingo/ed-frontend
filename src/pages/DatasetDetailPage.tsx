@@ -38,6 +38,7 @@ const DatasetDetailPage = () => {
   const navigate = useNavigate()
   const loaderData = useLoaderData() as DatasetDetailLoaderData
   const filesById = new Map(loaderData.datastoreFiles.map((file) => [file.id, file]))
+  console.log("DatasetDetailPage loaderData:", loaderData)
 
   const datasetFiles: DatasetFileRow[] = loaderData.datasetItems.map((item) => {
     const file = filesById.get(item.fileId)

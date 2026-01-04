@@ -51,9 +51,10 @@ const DataOverview: React.FC<DataOverviewProps> = ({
   })) || []
 
 
+  console.log("data metrics:", data?.metrics)
 
-  const shares = 12
-  const stars = 48
+  const shares = data?.metrics.shares
+  const stars = data?.metrics.likes
   const lastUpload = formatDate(data?.metrics.lastUploadAt)
 
   return (

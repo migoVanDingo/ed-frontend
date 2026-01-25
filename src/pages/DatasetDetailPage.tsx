@@ -1,6 +1,6 @@
 import React from "react"
 import Grid from "@mui/material/Grid"
-import { Box, Button, Typography } from "@mui/material"
+import { Box, Button, Stack, Typography } from "@mui/material"
 import { useTheme } from "@mui/material/styles"
 import { useLoaderData, useNavigate } from "react-router-dom"
 
@@ -90,23 +90,42 @@ const DatasetDetailPage = () => {
           subheadingStyle={{ paddingLeft: 2 }}
           padding={0}
         />
-        <Button
-          variant="outlined"
-          onClick={() =>
-            navigate(`/dashboard/dataset/${loaderData.dataset.id}/edit`)
-          }
-          sx={{
-            borderRadius: theme.custom.radii.xs,
-            fontSize: theme.custom.font.size.sm,
-            color: theme.palette.accent1.vibrant,
-            borderColor: theme.palette.accent1.vibrant,
-            "&:hover": { backgroundColor: theme.palette.accent1.dim },
-            whiteSpace: "nowrap",
-            minWidth: 140,
-          }}
-        >
-          Edit Dataset
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            variant="outlined"
+            onClick={() =>
+              navigate(`/dashboard/dataset/${loaderData.dataset.id}/edit`)
+            }
+            sx={{
+              borderRadius: theme.custom.radii.xs,
+              fontSize: theme.custom.font.size.sm,
+              color: theme.palette.accent1.vibrant,
+              borderColor: theme.palette.accent1.vibrant,
+              "&:hover": { backgroundColor: theme.palette.accent1.dim },
+              whiteSpace: "nowrap",
+              minWidth: 140,
+            }}
+          >
+            Edit Dataset
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() =>
+              navigate(`/labeler/dataset/${loaderData.dataset.id}`)
+            }
+            sx={{
+              borderRadius: theme.custom.radii.xs,
+              fontSize: theme.custom.font.size.sm,
+              color: theme.palette.accent1.vibrant,
+              borderColor: theme.palette.accent1.vibrant,
+              "&:hover": { backgroundColor: theme.palette.accent1.dim },
+              whiteSpace: "nowrap",
+              minWidth: 140,
+            }}
+          >
+            Open Labeler
+          </Button>
+        </Stack>
       </SStack>
 
       <Grid

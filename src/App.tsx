@@ -9,6 +9,7 @@ import RootLayout from "./components/layout/RootLayout";
 import AuthLayout from "./components/layout/AuthLayout";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import AdminLayout from "./components/layout/AdminLayout";
+import LabelerLayout from "./components/layout/LabelerLayout";
 
 // Pages
 import LoginPage from "./pages/LoginPage";
@@ -29,6 +30,7 @@ import { userDashboardLoader } from "./loaders/userDashboardLoader";
 import { datastoreDashboardLoader } from "./loaders/datastoreDashboardLoader";
 import DatasetEditPage from "./pages/DatasetEditPage";
 import { datasetEditLoader } from "./loaders/datasetEditLoader";
+import DatasetLabelerPage from "./pages/DatasetLabelerPage";
 
 // ─────────────────────────────────────────
 // Auth middleware helpers (utils/auth.ts)
@@ -256,6 +258,23 @@ const router = createBrowserRouter([
               const user = token ? decodeToken(token) : null;
               return { user };
             },
+            action: async () => null,
+            errorElement: <ErrorPage />,
+          },
+        ],
+      },
+      {
+        path: "labeler",
+        element: <LabelerLayout />,
+        id: "labeler-layout",
+        loader: withMiddlewareLoader([requireUser]),
+        errorElement: <ErrorPage />,
+        children: [
+          {
+            path: "dataset/:datasetId",
+            id: "dataset-labeler",
+            element: <DatasetLabelerPage />,
+            loader: async () => null,
             action: async () => null,
             errorElement: <ErrorPage />,
           },

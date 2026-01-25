@@ -58,6 +58,12 @@ const DatasetDetailPage = () => {
       status: item.status ?? undefined,
     }
   })
+  const defaultFileId = datasetFiles[0]?.id
+  const handleLaunchLabeler = (fileId?: string | null) => {
+    const targetId = fileId || defaultFileId
+    const query = targetId ? `?fileId=${encodeURIComponent(targetId)}` : ""
+    navigate(`/labeler/dataset/${loaderData.dataset.id}${query}`)
+  }
 
   return (
     <Box
@@ -110,9 +116,7 @@ const DatasetDetailPage = () => {
           </Button>
           <Button
             variant="outlined"
-            onClick={() =>
-              navigate(`/labeler/dataset/${loaderData.dataset.id}`)
-            }
+            onClick={() => handleLaunchLabeler(defaultFileId)}
             sx={{
               borderRadius: theme.custom.radii.xs,
               fontSize: theme.custom.font.size.sm,
@@ -142,7 +146,10 @@ const DatasetDetailPage = () => {
             height: "100%",
           }}
         >
-          <DatasetFileList files={datasetFiles} />
+          <DatasetFileList
+            files={datasetFiles}
+            onLaunchLabeler={(fileId) => handleLaunchLabeler(fileId)}
+          />
         </Grid>
 
         <Grid

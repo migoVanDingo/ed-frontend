@@ -23,6 +23,7 @@ export type DatasetFileRow = {
 
 type DatasetFileListProps = {
   files: DatasetFileRow[]
+  onLaunchLabeler?: (fileId: string) => void
 }
 
 const formatBytes = (size?: number) => {
@@ -43,7 +44,7 @@ const formatTypeLabel = (value?: string) => {
   return value.toUpperCase()
 }
 
-const DatasetFileList = ({ files }: DatasetFileListProps) => {
+const DatasetFileList = ({ files, onLaunchLabeler }: DatasetFileListProps) => {
   const theme = useTheme()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
@@ -59,6 +60,12 @@ const DatasetFileList = ({ files }: DatasetFileListProps) => {
   const handleMenuClose = () => {
     setAnchorEl(null)
     setMenuRowId(null)
+  }
+
+  const handleLaunchLabeler = () => {
+    if (!menuRowId) return
+    onLaunchLabeler?.(menuRowId)
+    handleMenuClose()
   }
 
   const chipColors: Record<string, string> = {
@@ -249,6 +256,7 @@ const DatasetFileList = ({ files }: DatasetFileListProps) => {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
+        <MenuItem onClick={handleLaunchLabeler}>Launch labeler</MenuItem>
         <MenuItem onClick={handleMenuClose}>View</MenuItem>
         <MenuItem onClick={handleMenuClose}>Remove from dataset</MenuItem>
       </Menu>

@@ -31,6 +31,7 @@ import { datastoreDashboardLoader } from "./loaders/datastoreDashboardLoader";
 import DatasetEditPage from "./pages/DatasetEditPage";
 import { datasetEditLoader } from "./loaders/datasetEditLoader";
 import DatasetLabelerPage from "./pages/DatasetLabelerPage";
+import { datasetLabelerLoader } from "./loaders/datasetLabelerLoader";
 
 // ─────────────────────────────────────────
 // Auth middleware helpers (utils/auth.ts)
@@ -274,7 +275,7 @@ const router = createBrowserRouter([
             path: "dataset/:datasetId",
             id: "dataset-labeler",
             element: <DatasetLabelerPage />,
-            loader: async () => null,
+            loader: datasetLabelerLoader,
             action: async () => null,
             errorElement: <ErrorPage />,
           },

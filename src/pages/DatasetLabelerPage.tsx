@@ -14,16 +14,15 @@ import {
 import { useTheme } from "@mui/material/styles"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import PauseIcon from "@mui/icons-material/Pause"
-import { useLocation, useParams } from "react-router-dom"
+import { useLoaderData, useLocation, useParams } from "react-router-dom"
+import { GraphQLClient } from "../graphql/GraphQLClient"
+import { ServicePort } from "../utility/constants/serviceConstants"
+import { UPSERT_ANNOTATION_DRAFT_MUTATION } from "../graphql/mutation/annotationDraft"
+import { GET_OR_CREATE_ANNOTATION_SET_MUTATION } from "../graphql/mutation/annotationSet"
+import { FILE_SIGNED_URL_QUERY } from "../graphql/query/fileQuery"
 
 const sampleVideoUrl =
   "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-
-const dummyFiles = Array.from({ length: 12 }, (_, idx) => ({
-  id: `file-${idx + 1}`,
-  name: `lecture_segment_${String(idx + 1).padStart(2, "0")}.mp4`,
-  status: idx % 3 === 0 ? "review" : idx % 2 === 0 ? "labeled" : "new",
-}))
 
 type LabelMeta = {
   name: string
@@ -48,6 +47,28 @@ type NoteEntry = {
   text: string
   anchorX: number
   anchorY: number
+}
+
+type DatasetLabelerFile = {
+  id: string
+  datasetItemId?: string | null
+  name: string
+  status: string
+  objectKey?: string | null
+  bucket?: string | null
+  storageProvider?: string | null
+  contentType?: string | null
+  meta?: Record<string, any> | null
+}
+
+type DatasetLabelerLoaderData = {
+  dataset: {
+    id: string
+    name: string
+    description?: string | null
+    datastoreId: string
+  }
+  datasetFiles: DatasetLabelerFile[]
 }
 
 type AnnotationRect = {
@@ -178,33 +199,29 @@ const NOTE_OFFSET = 14
 
 const DatasetLabelerPage = () => {
   const theme = useTheme()
+  const loaderData = useLoaderData() as DatasetLabelerLoaderData
   const { datasetId } = useParams()
   const location = useLocation()
   const searchParams = new URLSearchParams(location.search)
-  const videoUrl = searchParams.get("videoUrl") || sampleVideoUrl
+  const annotationSetIdParam = searchParams.get("annotationSetId")
+  const requestedFileId = searchParams.get("fileId")
+  const datasetFiles = loaderData.datasetFiles ?? []
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const videoContainerRef = useRef<HTMLDivElement | null>(null)
 
   const [labels, setLabels] = useState(() => [
     {
-      id: "student1",
-      name: "Student 1",
+      id: "default1",
+      name: "Default Label 1",
       color: theme.palette.accent1.vibrant,
-    },
-    {
-      id: "student2",
-      name: "Student 2",
-      color: theme.palette.accent2?.vibrant ?? theme.palette.primary.main,
-    },
-    {
-      id: "keyboard",
-      name: "Keyboard",
-      color: theme.palette.secondary.main,
     },
   ])
 
-  const [selectedFileId, setSelectedFileId] = useState(dummyFiles[0]?.id)
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(
+    datasetFiles[0]?.id ?? null
+  )
+  const selectedDatasetItemIdOverride = searchParams.get("datasetItemId")
   const [activeLabelId, setActiveLabelId] = useState(labels[0]?.id)
   const [labelMetadata, setLabelMetadata] = useState<Record<string, LabelMeta>>(
     () => {
@@ -256,15 +273,131 @@ const DatasetLabelerPage = () => {
   const [noteDraft, setNoteDraft] = useState("")
   const [colorAnchorEl, setColorAnchorEl] = useState<HTMLElement | null>(null)
   const isColorPickerOpen = Boolean(colorAnchorEl)
-
-  const selectedFile = useMemo(
-    () => dummyFiles.find((file) => file.id === selectedFileId),
-    [selectedFileId]
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  const [videoUrl, setVideoUrl] = useState(sampleVideoUrl)
+  const [videoUrlError, setVideoUrlError] = useState<string | null>(null)
+  const [annotationSetId, setAnnotationSetId] = useState<string | null>(
+    annotationSetIdParam
   )
+
+  const filesById = useMemo(
+    () => new Map(datasetFiles.map((file) => [file.id, file])),
+    [datasetFiles]
+  )
+  const selectedFile = selectedFileId ? filesById.get(selectedFileId) : undefined
+  const resolvedDatasetItemId =
+    selectedFile?.datasetItemId ?? selectedDatasetItemIdOverride ?? null
   const activeLabel = labels.find((label) => label.id === activeLabelId)
   const activeMeta = activeLabelId ? labelMetadata[activeLabelId] : undefined
 
   const contentHeight = `calc(100vh - ${theme.custom.component.header.height}px)`
+  const videoInspect = selectedFile?.meta?.video?.inspect
+  const metaDuration = Number(videoInspect?.duration_seconds)
+  const metaFps = Number(videoInspect?.fps)
+  const effectiveDuration = Number.isFinite(metaDuration) ? metaDuration : null
+  const effectiveFps = Number.isFinite(metaFps) ? metaFps : FPS
+  useEffect(() => {
+    if (!selectedFileId) {
+      setVideoUrl(sampleVideoUrl)
+      setVideoUrlError(null)
+      return
+    }
+
+    const target = selectedFile
+    if (!target) return
+    if (target.storageProvider && target.storageProvider !== "gcs") {
+      setVideoUrl(sampleVideoUrl)
+      setVideoUrlError("Unsupported storage provider for video preview.")
+      return
+    }
+
+    let cancelled = false
+    const fetchSignedUrl = async () => {
+      const response = await GraphQLClient.query<{
+        fileSignedUrl: string
+      }>(FILE_SIGNED_URL_QUERY, ServicePort.GRAPHQL, {
+        variables: { fileId: target.id, expiresIn: 900 },
+      })
+
+      if (cancelled) return
+
+      if (!response.success || !response.data?.fileSignedUrl) {
+        const message =
+          response.errors?.[0]?.message ?? "Failed to load video URL."
+        setVideoUrl(sampleVideoUrl)
+        setVideoUrlError(message)
+        return
+      }
+
+      setVideoUrl(response.data.fileSignedUrl)
+      setVideoUrlError(null)
+    }
+
+    fetchSignedUrl()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedFile, selectedFileId])
+
+  useEffect(() => {
+    if (effectiveDuration && (!duration || duration === 0)) {
+      setDuration(effectiveDuration)
+    }
+  }, [effectiveDuration, duration])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.load()
+  }, [videoUrl])
+
+  useEffect(() => {
+    if (!datasetFiles.length) return
+    const requested =
+      requestedFileId && filesById.has(requestedFileId)
+        ? requestedFileId
+        : null
+    const nextId = requested ?? datasetFiles[0]?.id ?? null
+    setSelectedFileId(nextId)
+  }, [datasetFiles, filesById, requestedFileId])
+
+  useEffect(() => {
+    setAnnotationSetId(annotationSetIdParam ?? null)
+  }, [annotationSetIdParam])
+
+  useEffect(() => {
+    if (annotationSetId || !datasetId) return
+
+    let cancelled = false
+    const ensureAnnotationSet = async () => {
+      const response = await GraphQLClient.mutate<{
+        getOrCreateAnnotationSet: { id: string; status: string }
+      }>(GET_OR_CREATE_ANNOTATION_SET_MUTATION, ServicePort.GRAPHQL, {
+        variables: { datasetId },
+      })
+
+      if (cancelled) return
+
+      if (!response.success || !response.data?.getOrCreateAnnotationSet) {
+        const message =
+          response.errors?.[0]?.message ??
+          "Failed to initialize annotation set."
+        setSaveError(message)
+        return
+      }
+
+      setAnnotationSetId(response.data.getOrCreateAnnotationSet.id)
+    }
+
+    ensureAnnotationSet()
+
+    return () => {
+      cancelled = true
+    }
+  }, [annotationSetId, datasetId])
 
   const updateVideoBounds = () => {
     const video = videoRef.current
@@ -383,7 +516,11 @@ const DatasetLabelerPage = () => {
     const video = videoRef.current
     if (!video) return
     if (video.paused) {
-      video.play()
+      video.play().catch((err) => {
+        const message =
+          err?.message ?? "Unable to play video. Unsupported source."
+        setVideoUrlError(message)
+      })
     } else {
       video.pause()
     }
@@ -778,6 +915,8 @@ const DatasetLabelerPage = () => {
       currentFrame >= note.frame &&
       currentFrame < note.frame + NOTE_DURATION_FRAMES
   )
+  const isCommitDisabled =
+    isSavingDraft || !annotationSetId || !resolvedDatasetItemId
   const accentButtonSx = {
     borderColor: theme.palette.accent1.vibrant,
     color: theme.palette.accent1.vibrant,
@@ -808,6 +947,56 @@ const DatasetLabelerPage = () => {
       },
     ])
     setNoteDraft("")
+  }
+
+  const buildDraftPayload = () => ({
+    datasetId: datasetId ?? null,
+    datasetItemId: resolvedDatasetItemId ?? null,
+    fileId: selectedFileId ?? null,
+    videoUrl,
+    labels,
+    labelMetadata,
+    annotations,
+    notes,
+    fps: effectiveFps,
+    duration,
+    savedAt: new Date().toISOString(),
+  })
+
+  const handleCommitAnnotations = async () => {
+    if (!annotationSetId || !resolvedDatasetItemId) {
+      setSaveError("Missing annotationSetId or datasetItemId for this session.")
+      setSaveSuccess(null)
+      return
+    }
+
+    setIsSavingDraft(true)
+    setSaveError(null)
+    setSaveSuccess(null)
+
+    const response = await GraphQLClient.mutate<{
+      upsertAnnotationDraft: { id: string; status: string }
+    }>(UPSERT_ANNOTATION_DRAFT_MUTATION, ServicePort.GRAPHQL, {
+      variables: {
+        input: {
+          annotationSetId: annotationSetId,
+          datasetItemId: resolvedDatasetItemId,
+          payload: buildDraftPayload(),
+          status: "COMMITTED",
+        },
+      },
+    })
+
+    if (!response.success || !response.data?.upsertAnnotationDraft) {
+      const message =
+        response.errors?.[0]?.message ?? "Failed to save annotation draft."
+      setSaveError(message)
+      setIsSavingDraft(false)
+      return
+    }
+
+    setSaveSuccess(`Saved draft ${response.data.upsertAnnotationDraft.id}.`)
+    setIsSavingDraft(false)
   }
 
   return (
@@ -856,7 +1045,7 @@ const DatasetLabelerPage = () => {
             />
           </Box>
           <Box sx={{ overflow: "auto", minHeight: 0, flex: 1 }}>
-            {dummyFiles.map((file, index) => {
+            {datasetFiles.map((file, index) => {
               const status = statusDisplay(file.status)
               const isActive = file.id === selectedFileId
               return (
@@ -874,7 +1063,7 @@ const DatasetLabelerPage = () => {
                       ? theme.palette.action.selected
                       : "transparent",
                     borderBottom:
-                      index < dummyFiles.length - 1
+                      index < datasetFiles.length - 1
                         ? `1px solid ${theme.palette.divider}`
                         : "none",
                   }}
@@ -997,13 +1186,18 @@ const DatasetLabelerPage = () => {
                   setDuration(video.duration || 0)
                   updateVideoBounds()
                 }}
+                onError={() => {
+                  setVideoUrlError(
+                    "Unable to load video source. Check signed URL or bucket CORS."
+                  )
+                }}
                 onTimeUpdate={(event) => {
                   const video = event.currentTarget
                   if (!Number.isFinite(duration) || duration === 0) {
                     setDuration(video.duration || 0)
                   }
                   if (!isScrubbing)
-                    setCurrentTime(video.currentTarget.currentTime)
+                    setCurrentTime(video.currentTime)
                 }}
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
@@ -1173,6 +1367,11 @@ const DatasetLabelerPage = () => {
                   +5s
                 </Button>
               </Stack>
+              {videoUrlError && (
+                <Typography variant="caption" color="error">
+                  {videoUrlError}
+                </Typography>
+              )}
             </Stack>
           </Box>
         </Box>
@@ -1233,8 +1432,9 @@ const DatasetLabelerPage = () => {
                   }
                   sx={{
                     "& .MuiInputBase-root": {
-                      py: 0.2,
-                      fontSize: theme.custom.font.size.xs,
+                      py: 0.3,
+                      fontSize: theme.custom.font.size.sm,
+                      minHeight: 36,
                     },
                   }}
                 />
@@ -1304,8 +1504,9 @@ const DatasetLabelerPage = () => {
                     onChange={(event) => setNewTag(event.target.value)}
                     sx={{
                       "& .MuiInputBase-root": {
-                        py: 0.2,
-                        fontSize: theme.custom.font.size.xs,
+                        py: 0.3,
+                        fontSize: theme.custom.font.size.sm,
+                        minHeight: 34,
                       },
                     }}
                   />
@@ -1337,11 +1538,11 @@ const DatasetLabelerPage = () => {
                     minRows={2}
                     sx={{
                       "& .MuiInputBase-root": {
-                        py: 0.2,
-                        fontSize: theme.custom.font.size.xs,
+                        py: 0.3,
+                        fontSize: theme.custom.font.size.sm,
                       },
                       "& .MuiInputLabel-root": {
-                        fontSize: theme.custom.font.size.xs,
+                        fontSize: theme.custom.font.size.sm,
                       },
                     }}
                   />
@@ -1351,7 +1552,7 @@ const DatasetLabelerPage = () => {
                     disabled={!selectedAnnotationId}
                     sx={accentButtonSx}
                   >
-                    Add Note (3s)
+                    Add Note
                   </Button>
                   {!selectedAnnotationId && (
                     <Typography variant="caption" color="text.secondary">
@@ -1450,9 +1651,24 @@ const DatasetLabelerPage = () => {
               </Box>
             </Stack>
           </Box>
-          <Button variant="outlined" sx={{ ...accentButtonSx, mt: 2 }}>
-            Commit Annotations
+          <Button
+            variant="outlined"
+            onClick={handleCommitAnnotations}
+            disabled={isCommitDisabled}
+            sx={{ ...accentButtonSx, mt: 2 }}
+          >
+            {isSavingDraft ? "Saving..." : "Commit Annotations"}
           </Button>
+          {saveError && (
+            <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+              {saveError}
+            </Typography>
+          )}
+          {saveSuccess && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+              {saveSuccess}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Box>

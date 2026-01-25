@@ -29,6 +29,34 @@ export const DATASET_DETAIL_QUERY = gql`
         fileId
         role
       }
+      items {
+        id
+        fileId
+        status
+        createdAt
+      }
+    }
+  }
+`;
+
+export const DATASET_LABELER_QUERY = gql`
+  query DatasetLabelerPage($datasetId: ID!) {
+    dataset(id: $datasetId) {
+      id
+      name
+      description
+      datastoreId
+      items {
+        id
+        fileId
+        status
+        createdAt
+      }
+      fileLinks {
+        id
+        fileId
+        role
+      }
     }
   }
 `;

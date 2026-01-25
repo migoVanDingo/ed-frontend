@@ -14,6 +14,10 @@ export const DATASTORE_FILES_QUERY = gql`
           createdAt
           tags
           clientToken
+          objectKey
+          bucket
+          storageProvider
+          meta
         }
         totalCount
         limit

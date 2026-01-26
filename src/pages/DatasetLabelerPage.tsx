@@ -1,198 +1,59 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Box,
   Button,
   Chip,
-  Divider,
   IconButton,
-  Popover,
   Slider,
   Stack,
-  TextField,
+  Tooltip,
   Typography,
 } from "@mui/material"
 import { useTheme } from "@mui/material/styles"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import PauseIcon from "@mui/icons-material/Pause"
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline"
 import { useLoaderData, useLocation, useParams } from "react-router-dom"
 import { GraphQLClient } from "../graphql/GraphQLClient"
 import { ServicePort } from "../utility/constants/serviceConstants"
 import { UPSERT_ANNOTATION_DRAFT_MUTATION } from "../graphql/mutation/annotationDraft"
 import { GET_OR_CREATE_ANNOTATION_SET_MUTATION } from "../graphql/mutation/annotationSet"
+import { COMMIT_ANNOTATION_DRAFT_MUTATION } from "../graphql/mutation/annotationCommit"
 import { FILE_SIGNED_URL_QUERY } from "../graphql/query/fileQuery"
+import { ANNOTATION_DRAFT_QUERY } from "../graphql/query/annotationDraft"
+import LabelerDetailsPanel from "../components/functional/labeler/LabelerDetailsPanel"
+import LabelerFileListPanel from "../components/functional/labeler/LabelerFileListPanel"
+import LabelerTimeline from "../components/functional/labeler/LabelerTimeline"
+import {
+  FPS,
+  clamp,
+  formatTime,
+  getActiveSegments,
+  getInterpolatedRect,
+  getLastKeyframeRect,
+  getSegmentState,
+  getTimelineTickInterval,
+  isActiveAtTime,
+  isNormalizedRect,
+  mergeSegments,
+  timeToFrame,
+} from "../utils/labeler/labelerUtils"
+import type {
+  ActiveKeyframe,
+  AnnotationRect,
+  DatasetLabelerFile,
+  DatasetLabelerLoaderData,
+  DragHandle,
+  LabelMeta,
+  NoteEntry,
+  Point,
+  RectShape,
+  TimelinePoint,
+  VideoBounds,
+} from "../types/labeler/labelerTypes"
 
 const sampleVideoUrl =
   "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-
-type LabelMeta = {
-  name: string
-  tags: string[]
-  color: string
-  notes: string
-}
-
-type Point = { x: number; y: number }
-
-type RectShape = { x: number; y: number; w: number; h: number }
-
-const FPS = 30
-
-type Keyframe = RectShape & { frame: number }
-
-type ActiveKeyframe = { frame: number; active: boolean }
-
-type NoteEntry = {
-  id: string
-  frame: number
-  text: string
-  anchorX: number
-  anchorY: number
-}
-
-type DatasetLabelerFile = {
-  id: string
-  datasetItemId?: string | null
-  name: string
-  status: string
-  objectKey?: string | null
-  bucket?: string | null
-  storageProvider?: string | null
-  contentType?: string | null
-  meta?: Record<string, any> | null
-}
-
-type DatasetLabelerLoaderData = {
-  dataset: {
-    id: string
-    name: string
-    description?: string | null
-    datastoreId: string
-  }
-  datasetFiles: DatasetLabelerFile[]
-}
-
-type AnnotationRect = {
-  id: string
-  labelId: string
-  labelName: string
-  color: string
-  keyframes: Keyframe[]
-  activeKeyframes: ActiveKeyframe[]
-}
-
-type VideoBounds = {
-  left: number
-  top: number
-  width: number
-  height: number
-}
-
-type DragHandle =
-  | "move"
-  | "nw"
-  | "ne"
-  | "sw"
-  | "se"
-  | "n"
-  | "s"
-  | "e"
-  | "w"
-  | null
-
-const formatTime = (seconds: number) => {
-  if (!Number.isFinite(seconds)) return "0:00"
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, "0")}`
-}
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max)
-
-const timeToFrame = (time: number) => Math.round(time * FPS)
-
-const getSegmentState = (activeKeyframes: ActiveKeyframe[], frame: number) => {
-  if (activeKeyframes.length === 0) {
-    return { active: true, startFrame: 0, endFrame: Infinity }
-  }
-  const frames = [...activeKeyframes].sort((a, b) => a.frame - b.frame)
-  if (frame <= frames[0].frame) {
-    return {
-      active: frames[0].active,
-      startFrame: frames[0].frame,
-      endFrame: frames[1]?.frame ?? Infinity,
-    }
-  }
-  if (frame >= frames[frames.length - 1].frame) {
-    return {
-      active: frames[frames.length - 1].active,
-      startFrame: frames[frames.length - 1].frame,
-      endFrame: Infinity,
-    }
-  }
-  const nextIndex = frames.findIndex((frameItem) => frameItem.frame >= frame)
-  const prev = frames[Math.max(nextIndex - 1, 0)]
-  const next = frames[nextIndex]
-  return {
-    active: prev?.active ?? true,
-    startFrame: prev?.frame ?? 0,
-    endFrame: next?.frame ?? Infinity,
-  }
-}
-
-const getLastKeyframeRect = (
-  annotation: AnnotationRect,
-  frame: number
-): RectShape | null => {
-  if (annotation.keyframes.length === 0) return null
-  const frames = [...annotation.keyframes].sort((a, b) => a.frame - b.frame)
-  const before = frames.filter((kf) => kf.frame <= frame)
-  const target = before[before.length - 1] ?? frames[0]
-  return target ? { x: target.x, y: target.y, w: target.w, h: target.h } : null
-}
-
-const getInterpolatedRect = (
-  annotation: AnnotationRect,
-  frame: number
-): RectShape | null => {
-  if (annotation.keyframes.length === 0) return null
-  const segment = getSegmentState(annotation.activeKeyframes, frame)
-  if (!segment.active) return null
-
-  const frames = [...annotation.keyframes].sort((a, b) => a.frame - b.frame)
-  const segmentFrames = frames.filter(
-    (kf) => kf.frame >= segment.startFrame && kf.frame <= segment.endFrame
-  )
-  const usableFrames = segmentFrames.length > 0 ? segmentFrames : frames
-
-  if (frame <= usableFrames[0].frame) {
-    const { x, y, w, h } = usableFrames[0]
-    return { x, y, w, h }
-  }
-  if (frame >= usableFrames[usableFrames.length - 1].frame) {
-    const { x, y, w, h } = usableFrames[usableFrames.length - 1]
-    return { x, y, w, h }
-  }
-
-  const nextIndex = usableFrames.findIndex(
-    (frameItem) => frameItem.frame >= frame
-  )
-  const prev = usableFrames[Math.max(nextIndex - 1, 0)]
-  const next = usableFrames[nextIndex]
-  if (!prev || !next) return null
-
-  const span = next.frame - prev.frame
-  const t = span === 0 ? 0 : (frame - prev.frame) / span
-  return {
-    x: prev.x + (next.x - prev.x) * t,
-    y: prev.y + (next.y - prev.y) * t,
-    w: prev.w + (next.w - prev.w) * t,
-    h: prev.h + (next.h - prev.h) * t,
-  }
-}
-
-const isActiveAtTime = (annotation: AnnotationRect, frame: number) =>
-  getSegmentState(annotation.activeKeyframes, frame).active
 
 const NOTE_DURATION_FRAMES = 100
 const NOTE_OFFSET = 14
@@ -217,6 +78,17 @@ const DatasetLabelerPage = () => {
       color: theme.palette.accent1.vibrant,
     },
   ])
+  useEffect(() => {
+    setInterpolationKeyframesByLabel((prev) => {
+      const next = { ...prev }
+      labels.forEach((label) => {
+        if (!Array.isArray(next[label.id])) {
+          next[label.id] = [{ frame: 0, active: false }]
+        }
+      })
+      return next
+    })
+  }, [labels])
 
   const [selectedFileId, setSelectedFileId] = useState<string | null>(
     datasetFiles[0]?.id ?? null
@@ -240,7 +112,9 @@ const DatasetLabelerPage = () => {
   const [newTag, setNewTag] = useState("")
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
+  const [displayTime, setDisplayTime] = useState(0)
   const [isScrubbing, setIsScrubbing] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
   const [startPoint, setStartPoint] = useState<Point | null>(null)
   const [currentRect, setCurrentRect] = useState<
@@ -269,18 +143,39 @@ const DatasetLabelerPage = () => {
     id: string
     rect: RectShape
   } | null>(null)
+  const [pendingEdits, setPendingEdits] = useState<
+    Record<string, { frame: number; rect: RectShape }>
+  >({})
   const [notes, setNotes] = useState<NoteEntry[]>([])
   const [noteDraft, setNoteDraft] = useState("")
+  const [labelNameDraft, setLabelNameDraft] = useState("")
   const [colorAnchorEl, setColorAnchorEl] = useState<HTMLElement | null>(null)
   const isColorPickerOpen = Boolean(colorAnchorEl)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  const [isAutosaving, setIsAutosaving] = useState(false)
+  const lastAutosavePayloadRef = useRef<string | null>(null)
+  const [autosaveTick, setAutosaveTick] = useState(0)
+  const [isHydratingDraft, setIsHydratingDraft] = useState(false)
+  const [draftStatus, setDraftStatus] = useState<string | null>(null)
+  const [draftSource, setDraftSource] = useState<"draft" | "committed" | null>(
+    null
+  )
+  const [draftFps, setDraftFps] = useState<number | null>(null)
+  const [interpolationKeyframesByLabel, setInterpolationKeyframesByLabel] =
+    useState<Record<string, ActiveKeyframe[]>>(() => ({}))
+  const [selectedTimelinePoint, setSelectedTimelinePoint] = useState<{
+    annotationId: string
+    frame: number
+    type: "keyframe" | "toggle" | "interpolation"
+  } | null>(null)
   const [videoUrl, setVideoUrl] = useState(sampleVideoUrl)
   const [videoUrlError, setVideoUrlError] = useState<string | null>(null)
   const [annotationSetId, setAnnotationSetId] = useState<string | null>(
     annotationSetIdParam
   )
+  const lastSelectedFileIdRef = useRef<string | null>(null)
 
   const filesById = useMemo(
     () => new Map(datasetFiles.map((file) => [file.id, file])),
@@ -291,13 +186,61 @@ const DatasetLabelerPage = () => {
     selectedFile?.datasetItemId ?? selectedDatasetItemIdOverride ?? null
   const activeLabel = labels.find((label) => label.id === activeLabelId)
   const activeMeta = activeLabelId ? labelMetadata[activeLabelId] : undefined
+  useEffect(() => {
+    setLabelNameDraft(activeMeta?.name ?? "")
+  }, [activeLabelId, activeMeta?.name])
 
   const contentHeight = `calc(100vh - ${theme.custom.component.header.height}px)`
   const videoInspect = selectedFile?.meta?.video?.inspect
   const metaDuration = Number(videoInspect?.duration_seconds)
   const metaFps = Number(videoInspect?.fps)
   const effectiveDuration = Number.isFinite(metaDuration) ? metaDuration : null
-  const effectiveFps = Number.isFinite(metaFps) ? metaFps : FPS
+  const safeDraftFps =
+    typeof draftFps === "number" && Number.isFinite(draftFps)
+      ? draftFps
+      : null
+  const safeMetaFps = Number.isFinite(metaFps) ? metaFps : null
+  const effectiveFps = safeDraftFps ?? safeMetaFps ?? FPS
+  const resetLabelerState = useCallback(() => {
+    const baseLabel = {
+      id: "default1",
+      name: "Default Label 1",
+      color: theme.palette.accent1.vibrant,
+    }
+    setLabels([baseLabel])
+    setLabelMetadata({
+      [baseLabel.id]: {
+        name: baseLabel.name,
+        tags: ["person"],
+        color: baseLabel.color,
+        notes: "",
+      },
+    })
+    setActiveLabelId(baseLabel.id)
+    setLabelNameDraft(baseLabel.name)
+    setAnnotations([])
+    setNotes([])
+    setNewTag("")
+    setNoteDraft("")
+    setSelectedAnnotationId(null)
+    setDragHandle(null)
+    setDragStartPoint(null)
+    setDragStartRect(null)
+    setDragPreview(null)
+    setPendingEdits({})
+    setInterpolationKeyframesByLabel({ [baseLabel.id]: [{ frame: 0, active: false }] })
+    setDraftFps(null)
+    setDraftSource(null)
+    setDraftStatus(null)
+    setSaveError(null)
+    setSaveSuccess(null)
+    setIsSavingDraft(false)
+    setIsAutosaving(false)
+    setCurrentTime(0)
+    setDisplayTime(0)
+    setDuration(0)
+    lastAutosavePayloadRef.current = null
+  }, [theme.palette.accent1.vibrant])
   useEffect(() => {
     if (!selectedFileId) {
       setVideoUrl(sampleVideoUrl)
@@ -341,6 +284,13 @@ const DatasetLabelerPage = () => {
       cancelled = true
     }
   }, [selectedFile, selectedFileId])
+
+  useEffect(() => {
+    if (!selectedFileId) return
+    if (lastSelectedFileIdRef.current === selectedFileId) return
+    lastSelectedFileIdRef.current = selectedFileId
+    resetLabelerState()
+  }, [resetLabelerState, selectedFileId])
 
   useEffect(() => {
     if (effectiveDuration && (!duration || duration === 0)) {
@@ -427,25 +377,107 @@ const DatasetLabelerPage = () => {
     setVideoBounds({ left, top, width, height })
   }
 
+  const normalizeRect = (rect: RectShape): RectShape => {
+    if (isNormalizedRect(rect)) return rect
+    if (!videoBounds.width || !videoBounds.height) return rect
+    return {
+      x: rect.x / videoBounds.width,
+      y: rect.y / videoBounds.height,
+      w: rect.w / videoBounds.width,
+      h: rect.h / videoBounds.height,
+    }
+  }
+
+  const toDisplayRect = (rect: RectShape): RectShape => {
+    if (!isNormalizedRect(rect) || !videoBounds.width || !videoBounds.height) {
+      return rect
+    }
+    return {
+      x: rect.x * videoBounds.width,
+      y: rect.y * videoBounds.height,
+      w: rect.w * videoBounds.width,
+      h: rect.h * videoBounds.height,
+    }
+  }
+
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
     const handleLoaded = () => {
       setDuration(video.duration || 0)
+      setDisplayTime(video.currentTime || 0)
       updateVideoBounds()
     }
     const handleTimeUpdate = () => {
-      if (!isScrubbing) setCurrentTime(video.currentTime)
+      if (!isScrubbing) {
+        setCurrentTime(video.currentTime)
+        setDisplayTime(video.currentTime)
+      }
+    }
+    const handlePlay = () => {
+      setIsPlaying(true)
+    }
+    const handlePause = () => {
+      setIsPlaying(false)
+      if (!isScrubbing) {
+        setDisplayTime(video.currentTime)
+      }
     }
 
     video.addEventListener("loadedmetadata", handleLoaded)
     video.addEventListener("timeupdate", handleTimeUpdate)
+    video.addEventListener("play", handlePlay)
+    video.addEventListener("pause", handlePause)
+    video.addEventListener("ended", handlePause)
     return () => {
       video.removeEventListener("loadedmetadata", handleLoaded)
       video.removeEventListener("timeupdate", handleTimeUpdate)
+      video.removeEventListener("play", handlePlay)
+      video.removeEventListener("pause", handlePause)
+      video.removeEventListener("ended", handlePause)
     }
   }, [isScrubbing])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    if (isScrubbing) return
+
+    let rafId: number | null = null
+    let intervalId: number | null = null
+
+    const updateTime = () => {
+      if (isScrubbing) return
+      const nextTime = video.currentTime
+      setCurrentTime(nextTime)
+      setDisplayTime(nextTime)
+    }
+
+    const videoWithCallback = video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (callback: () => void) => number
+      cancelVideoFrameCallback?: (handle: number) => void
+    }
+
+    if (videoWithCallback.requestVideoFrameCallback) {
+      const tick = () => {
+        updateTime()
+        rafId = videoWithCallback.requestVideoFrameCallback!(tick)
+      }
+      rafId = videoWithCallback.requestVideoFrameCallback(tick)
+    } else {
+      intervalId = window.setInterval(updateTime, 50)
+    }
+
+    return () => {
+      if (rafId !== null && videoWithCallback.cancelVideoFrameCallback) {
+        videoWithCallback.cancelVideoFrameCallback(rafId)
+      } else if (rafId !== null) {
+        window.cancelAnimationFrame(rafId)
+      }
+      if (intervalId !== null) window.clearInterval(intervalId)
+    }
+  }, [isScrubbing, videoUrl])
 
   useEffect(() => {
     if (!videoContainerRef.current) return
@@ -496,6 +528,7 @@ const DatasetLabelerPage = () => {
     if (!newTag.trim() || !activeMeta || !activeLabelId) return
     handleUpdateMeta({ tags: [...activeMeta.tags, newTag.trim()] })
     setNewTag("")
+    queueAutosave()
   }
 
   const handleAddLabel = () => {
@@ -542,6 +575,7 @@ const DatasetLabelerPage = () => {
     setIsScrubbing(true)
     const clamped = max ? clamp(nextValue, 0, max) : Math.max(nextValue, 0)
     setCurrentTime(clamped)
+    setDisplayTime(clamped)
     video.currentTime = clamped
   }
 
@@ -553,6 +587,7 @@ const DatasetLabelerPage = () => {
     const clamped = max ? clamp(nextValue, 0, max) : Math.max(nextValue, 0)
     video.currentTime = clamped
     setCurrentTime(clamped)
+    setDisplayTime(clamped)
     setIsScrubbing(false)
   }
 
@@ -562,6 +597,7 @@ const DatasetLabelerPage = () => {
     const nextValue = clamp(video.currentTime + delta, 0, video.duration || 0)
     video.currentTime = nextValue
     setCurrentTime(nextValue)
+    setDisplayTime(nextValue)
   }
 
   const getRelativePoint = (
@@ -578,13 +614,25 @@ const DatasetLabelerPage = () => {
   const updateAnnotationKeyframe = (
     id: string,
     rect: RectShape,
-    frame: number
+    frame: number,
+    overwriteSegment: boolean = false
   ) => {
-    const keyframe: Keyframe = { ...rect, frame }
+    if (!videoBounds.width || !videoBounds.height) return
+    const normalizedRect = normalizeRect(rect)
+    const keyframe = { ...normalizedRect, frame }
     setAnnotations((prev) =>
       prev.map((annotation) => {
         if (annotation.id !== id) return annotation
-        const nextFrames = [...annotation.keyframes]
+        let nextFrames = [...annotation.keyframes]
+        if (overwriteSegment) {
+          const segment = getSegmentState(annotation.activeKeyframes, frame)
+          nextFrames = nextFrames.filter(
+            (kf) =>
+              kf.frame === frame ||
+              kf.frame < segment.startFrame ||
+              kf.frame > segment.endFrame
+          )
+        }
         const existingIndex = nextFrames.findIndex((kf) => kf.frame === frame)
         if (existingIndex >= 0) {
           nextFrames[existingIndex] = keyframe
@@ -594,6 +642,89 @@ const DatasetLabelerPage = () => {
         return { ...annotation, keyframes: nextFrames }
       })
     )
+  }
+
+  const updateAnnotationWithoutNewKeyframe = (
+    id: string,
+    rect: RectShape,
+    frame: number
+  ) => {
+    if (!videoBounds.width || !videoBounds.height) return
+    const normalizedRect = normalizeRect(rect)
+    setAnnotations((prev) =>
+      prev.map((annotation) => {
+        if (annotation.id !== id) return annotation
+        if (annotation.keyframes.length === 0) return annotation
+        const hasKeyframe = annotation.keyframes.some((kf) => kf.frame === frame)
+        if (!hasKeyframe) return annotation
+        const nextFrames = annotation.keyframes.map((kf) =>
+          kf.frame === frame ? { ...normalizedRect, frame } : kf
+        )
+        return { ...annotation, keyframes: nextFrames }
+      })
+    )
+  }
+
+  const addKeyframeForAnnotation = (annotationId: string, frame: number) => {
+    if (!videoBounds.width || !videoBounds.height) return
+    const pending = pendingEdits[annotationId]
+    setAnnotations((prev) =>
+      prev.map((annotation) => {
+        if (annotation.id !== annotationId) return annotation
+        const rect =
+          pending && pending.frame === frame
+            ? pending.rect
+            : getInterpolatedRect(annotation, frame) ??
+              getLastKeyframeRect(annotation, frame)
+        if (!rect) return annotation
+        const normalizedRect = normalizeRect(rect)
+        const nextFrames = [...annotation.keyframes]
+        const existingIndex = nextFrames.findIndex((kf) => kf.frame === frame)
+        if (existingIndex >= 0) {
+          nextFrames[existingIndex] = { ...normalizedRect, frame }
+        } else {
+          nextFrames.push({ ...normalizedRect, frame })
+        }
+        return { ...annotation, keyframes: nextFrames }
+      })
+    )
+    if (pending && pending.frame === frame) {
+      setPendingEdits((prev) => {
+        const next = { ...prev }
+        delete next[annotationId]
+        return next
+      })
+    }
+  }
+
+  const addKeyframeForLabel = () => {
+    if (!activeLabelId) return
+    const frame = currentFrame
+    const target =
+      labelAnnotations.find((rect) => rect.id === selectedAnnotationId) ??
+      labelAnnotations[0]
+    if (!target) return
+    addKeyframeForAnnotation(target.id, frame)
+    queueAutosave()
+  }
+
+  const toggleInterpolationAtCurrentFrame = () => {
+    if (!activeLabelId) return
+    const frame = currentFrame
+    const keyframes = interpolationKeyframesByLabel[activeLabelId] ?? [
+      { frame: 0, active: true },
+    ]
+    const currentState = getSegmentState(keyframes, frame).active
+    const nextFrames = keyframes.filter((kf) => kf.frame !== frame)
+    nextFrames.push({ frame, active: !currentState })
+    setInterpolationKeyframesByLabel((prev) => ({
+      ...prev,
+      [activeLabelId]: nextFrames,
+    }))
+    labelAnnotations.forEach((annotation) => {
+      addKeyframeForAnnotation(annotation.id, frame)
+    })
+    queueAutosave()
   }
 
   const getHandleForRect = (point: Point, rect: RectShape): DragHandle => {
@@ -672,17 +803,21 @@ const DatasetLabelerPage = () => {
   }
 
   const findHoveredHandle = (point: Point) => {
-    const currentFrame = timeToFrame(currentTime)
+    const currentFrame = timeToFrame(currentTime, effectiveFps)
     const candidates = annotations
       .map((rect) => {
         const isSelected = rect.id === selectedAnnotationId
         const isActive = isActiveAtTime(rect, currentFrame)
-        const display = isActive
-          ? getInterpolatedRect(rect, currentFrame)
-          : isSelected
-            ? getLastKeyframeRect(rect, currentFrame)
+        const pending =
+          pendingEdits[rect.id]?.frame === currentFrame
+            ? pendingEdits[rect.id].rect
             : null
-        return display ? { rect, display } : null
+        const display = isActive
+          ? pending ?? getInterpolatedRect(rect, currentFrame)
+          : isSelected
+            ? pending ?? getLastKeyframeRect(rect, currentFrame)
+            : null
+        return display ? { rect, display: toDisplayRect(display) } : null
       })
       .filter(
         (entry): entry is { rect: AnnotationRect; display: RectShape } =>
@@ -797,11 +932,19 @@ const DatasetLabelerPage = () => {
     if (dragHandle && selectedAnnotationId) {
       const rect = dragPreview?.rect
       if (rect) {
-        updateAnnotationKeyframe(
-          selectedAnnotationId,
-          rect,
-          timeToFrame(currentTime)
+        const frame = timeToFrame(currentTime, effectiveFps)
+        const target = annotations.find((item) => item.id === selectedAnnotationId)
+        const hasKeyframe = Boolean(
+          target?.keyframes.some((kf) => kf.frame === frame)
         )
+        if (hasKeyframe) {
+          updateAnnotationWithoutNewKeyframe(selectedAnnotationId, rect, frame)
+        } else {
+          setPendingEdits((prev) => ({
+            ...prev,
+            [selectedAnnotationId]: { frame, rect },
+          }))
+        }
       }
       setDragHandle(null)
       setDragStartPoint(null)
@@ -824,15 +967,24 @@ const DatasetLabelerPage = () => {
       h: Math.abs(h),
     }
 
+    if (!videoBounds.width || !videoBounds.height) {
+      setIsDrawing(false)
+      setCurrentRect(null)
+      setStartPoint(null)
+      return
+    }
+
     const annotation: AnnotationRect = {
       id: `rect-${Date.now()}`,
       labelId: currentRect.labelId,
       labelName: currentRect.labelName,
       color: currentRect.color,
-      keyframes: [{ ...rect, frame: timeToFrame(currentTime) }],
+      keyframes: [
+        { ...normalizeRect(rect), frame: currentFrame },
+      ],
       activeKeyframes: [
         { frame: 0, active: false },
-        { frame: timeToFrame(currentTime), active: true },
+        { frame: currentFrame, active: true },
       ],
     }
 
@@ -856,10 +1008,23 @@ const DatasetLabelerPage = () => {
     setAnnotations((prev) =>
       prev.map((rect) => {
         if (rect.id !== id) return rect
-        const currentFrame = timeToFrame(currentTime)
+        const currentFrame = timeToFrame(currentTime, effectiveFps)
         const currentActive = isActiveAtTime(rect, currentFrame)
         let nextKeyframes = rect.keyframes
         if (!currentActive) {
+          const existing = rect.keyframes.find(
+            (kf) => kf.frame === currentFrame
+          )
+          if (!existing) {
+            const lastRect = getLastKeyframeRect(rect, currentFrame)
+            if (lastRect) {
+              nextKeyframes = [
+                ...rect.keyframes,
+                { ...lastRect, frame: currentFrame },
+              ]
+            }
+          }
+        } else {
           const existing = rect.keyframes.find(
             (kf) => kf.frame === currentFrame
           )
@@ -884,6 +1049,7 @@ const DatasetLabelerPage = () => {
         }
       })
     )
+    queueAutosave()
   }
 
   const handleDeleteAnnotation = (id: string) => {
@@ -897,18 +1063,8 @@ const DatasetLabelerPage = () => {
     }
   }
 
-  const statusDisplay = (status: string) => {
-    if (status === "new") {
-      return { color: "#e53935", symbol: "!" }
-    }
-    if (status === "review") {
-      return { color: "#f9a825", symbol: "?" }
-    }
-    return { color: "#43a047", symbol: "✓" }
-  }
-
   const isVideoPlaying = videoRef.current ? !videoRef.current.paused : false
-  const currentFrame = timeToFrame(currentTime)
+  const currentFrame = timeToFrame(currentTime, effectiveFps)
   const isEditingBox = Boolean(dragHandle)
   const activeNotes = notes.filter(
     (note) =>
@@ -923,11 +1079,136 @@ const DatasetLabelerPage = () => {
     "&:hover": { backgroundColor: theme.palette.accent1.dim },
   }
 
+  const activeLabelInterpolation = activeLabelId
+    ? Array.isArray(interpolationKeyframesByLabel[activeLabelId])
+      ? getSegmentState(
+          interpolationKeyframesByLabel[activeLabelId],
+          currentFrame
+        ).active
+      : true
+    : false
+  const labelAnnotations = activeLabelId
+    ? annotations.filter((rect) => rect.labelId === activeLabelId)
+    : []
+  const durationFrames = Math.max(timeToFrame(duration, effectiveFps), 0)
+  const labelActiveSegments = mergeSegments(
+    labelAnnotations.flatMap((rect) =>
+      getActiveSegments(rect.activeKeyframes, durationFrames)
+    )
+  )
+  const timelinePoints = labelAnnotations.flatMap((rect) => {
+    const keyframes = rect.keyframes.map((kf) => ({
+      annotationId: rect.id,
+      frame: kf.frame,
+      type: "keyframe" as const,
+    }))
+    const toggles = rect.activeKeyframes.map((kf) => ({
+      annotationId: rect.id,
+      frame: kf.frame,
+      type: "toggle" as const,
+      active: kf.active,
+    }))
+    return [...keyframes, ...toggles]
+  })
+  const interpolationPoints = activeLabelId
+    ? (interpolationKeyframesByLabel[activeLabelId] ?? []).map((kf) => ({
+        annotationId: activeLabelId,
+        frame: kf.frame,
+        type: "interpolation" as const,
+        active: kf.active,
+      }))
+    : []
+  const timelineTicks = duration
+    ? Array.from(
+        { length: Math.floor(duration / getTimelineTickInterval(duration)) + 1 },
+        (_, idx) => idx * getTimelineTickInterval(duration)
+      ).filter((value) => value > 0 && value < duration)
+    : []
+
+  useEffect(() => {
+    setPendingEdits((prev) => {
+      if (Object.keys(prev).length === 0) return prev
+      const next = { ...prev }
+      Object.keys(next).forEach((id) => {
+        if (next[id].frame !== currentFrame) {
+          delete next[id]
+        }
+      })
+      return next
+    })
+  }, [currentFrame])
+
+  const handleTimelinePointSelect = (
+    point: {
+      annotationId: string
+      frame: number
+      type: "keyframe" | "toggle" | "interpolation"
+    },
+    timeSeconds: number
+  ) => {
+    const video = videoRef.current
+    if (video) {
+      video.currentTime = timeSeconds
+    }
+    setCurrentTime(timeSeconds)
+    if (point.type !== "interpolation") {
+      setSelectedAnnotationId(point.annotationId)
+    }
+    setSelectedTimelinePoint(point)
+  }
+
+  const handleDeleteTimelinePoint = () => {
+    if (!selectedTimelinePoint) return
+    const { annotationId, frame, type } = selectedTimelinePoint
+    if (type === "interpolation") {
+      if (!activeLabelId) return
+      setInterpolationKeyframesByLabel((prev) => ({
+        ...prev,
+        [activeLabelId]: (prev[activeLabelId] ?? []).filter(
+          (kf) => kf.frame !== frame
+        ),
+      }))
+      setSelectedTimelinePoint(null)
+      return
+    }
+    setAnnotations((prev) =>
+      prev.map((rect) => {
+        if (rect.id !== annotationId) return rect
+        if (type === "keyframe") {
+          return {
+            ...rect,
+            keyframes: rect.keyframes.filter((kf) => kf.frame !== frame),
+          }
+        }
+        return {
+          ...rect,
+          activeKeyframes: rect.activeKeyframes.filter((kf) => kf.frame !== frame),
+        }
+      })
+    )
+    setSelectedTimelinePoint(null)
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || !event.shiftKey) return
+      if (event.key.toLowerCase() !== "k") return
+      event.preventDefault()
+      addKeyframeForLabel()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [addKeyframeForLabel])
+
   const handleAddNote = () => {
     if (!noteDraft.trim() || !selectedAnnotationId) return
     const target = annotations.find((rect) => rect.id === selectedAnnotationId)
     if (!target) return
-    const display = getInterpolatedRect(target, currentFrame)
+    const rawDisplay = getInterpolatedRect(target, currentFrame)
+    const display = rawDisplay ? toDisplayRect(rawDisplay) : null
     if (!display) return
     const anchorX = clamp(
       display.x + display.w + NOTE_OFFSET,
@@ -947,9 +1228,10 @@ const DatasetLabelerPage = () => {
       },
     ])
     setNoteDraft("")
+    queueAutosave()
   }
 
-  const buildDraftPayload = () => ({
+  const buildDraftPayload = (savedAt?: string) => ({
     datasetId: datasetId ?? null,
     datasetItemId: resolvedDatasetItemId ?? null,
     fileId: selectedFileId ?? null,
@@ -958,10 +1240,189 @@ const DatasetLabelerPage = () => {
     labelMetadata,
     annotations,
     notes,
+    activeLabelId,
     fps: effectiveFps,
     duration,
-    savedAt: new Date().toISOString(),
+    ...(savedAt ? { savedAt } : {}),
+    interpolationKeyframesByLabel,
   })
+
+  const applyDraftPayload = (payload: any) => {
+    if (!payload || typeof payload !== "object") return
+    if (Array.isArray(payload.labels)) {
+      setLabels(payload.labels)
+      if (!payload.activeLabelId && payload.labels.length > 0) {
+        setActiveLabelId(payload.labels[0].id)
+      }
+    }
+    if (payload.labelMetadata && typeof payload.labelMetadata === "object") {
+      setLabelMetadata(payload.labelMetadata)
+    } else if (Array.isArray(payload.labels)) {
+      const meta: Record<string, LabelMeta> = {}
+      payload.labels.forEach((label: any) => {
+        if (!label?.id) return
+        meta[label.id] = {
+          name: label.name ?? label.id,
+          tags: Array.isArray(label.tags) ? label.tags : [],
+          color: label.color ?? theme.palette.accent1.vibrant,
+          notes: label.notes ?? "",
+        }
+      })
+      setLabelMetadata(meta)
+    }
+    if (Array.isArray(payload.annotations)) {
+      setAnnotations(payload.annotations)
+    }
+    if (Array.isArray(payload.notes)) {
+      setNotes(payload.notes)
+    }
+    if (typeof payload.duration === "number" && payload.duration > 0) {
+      setDuration(payload.duration)
+    }
+    if (payload.activeLabelId) {
+      setActiveLabelId(payload.activeLabelId)
+    }
+    if (
+      payload.interpolationKeyframesByLabel &&
+      typeof payload.interpolationKeyframesByLabel === "object"
+    ) {
+      setInterpolationKeyframesByLabel(payload.interpolationKeyframesByLabel)
+    }
+    if (typeof payload.fps === "number" && Number.isFinite(payload.fps)) {
+      setDraftFps(payload.fps)
+    }
+  }
+
+  useEffect(() => {
+    if (!annotationSetId || !resolvedDatasetItemId) return
+
+    let cancelled = false
+    const loadDraft = async () => {
+      setIsHydratingDraft(true)
+      const response = await GraphQLClient.query<{
+        annotationDraft: { id: string; status: string; payload: any } | null
+      }>(ANNOTATION_DRAFT_QUERY, ServicePort.GRAPHQL, {
+        variables: {
+          annotationSetId,
+          datasetItemId: resolvedDatasetItemId,
+          status: "DRAFT",
+        },
+      })
+
+      if (cancelled) return
+
+      if (response.success && response.data?.annotationDraft?.payload) {
+        const payload = response.data.annotationDraft.payload
+        applyDraftPayload(payload)
+        setDraftStatus(response.data.annotationDraft.status)
+        setDraftSource("draft")
+        lastAutosavePayloadRef.current = JSON.stringify(payload)
+        setIsHydratingDraft(false)
+        return
+      }
+
+      const committedResponse = await GraphQLClient.query<{
+        annotationDraft: { id: string; status: string; payload: any } | null
+      }>(ANNOTATION_DRAFT_QUERY, ServicePort.GRAPHQL, {
+        variables: {
+          annotationSetId,
+          datasetItemId: resolvedDatasetItemId,
+          status: "COMMITTED",
+        },
+      })
+
+      if (cancelled) return
+
+        if (committedResponse.success && committedResponse.data?.annotationDraft?.payload) {
+        const payload = committedResponse.data.annotationDraft.payload
+        applyDraftPayload(payload)
+        setDraftStatus(committedResponse.data.annotationDraft.status)
+        setDraftSource("committed")
+        lastAutosavePayloadRef.current = JSON.stringify(payload)
+
+        await GraphQLClient.mutate<{
+          upsertAnnotationDraft: { id: string; status: string }
+        }>(UPSERT_ANNOTATION_DRAFT_MUTATION, ServicePort.GRAPHQL, {
+          variables: {
+            input: {
+              annotationSetId: annotationSetId,
+              datasetItemId: resolvedDatasetItemId,
+              payload,
+              status: "DRAFT",
+            },
+          },
+        })
+      } else {
+        const seedPayload = buildDraftPayload()
+        await GraphQLClient.mutate<{
+          upsertAnnotationDraft: { id: string; status: string }
+        }>(UPSERT_ANNOTATION_DRAFT_MUTATION, ServicePort.GRAPHQL, {
+          variables: {
+            input: {
+              annotationSetId: annotationSetId,
+              datasetItemId: resolvedDatasetItemId,
+              payload: seedPayload,
+              status: "DRAFT",
+            },
+          },
+        })
+        lastAutosavePayloadRef.current = JSON.stringify(seedPayload)
+        setDraftSource(null)
+        setDraftStatus("DRAFT")
+      }
+
+      setIsHydratingDraft(false)
+    }
+
+    loadDraft()
+
+    return () => {
+      cancelled = true
+    }
+  }, [annotationSetId, resolvedDatasetItemId])
+
+  const queueAutosave = useCallback(() => {
+    setAutosaveTick((prev) => prev + 1)
+  }, [])
+
+  useEffect(() => {
+    if (!annotationSetId || !resolvedDatasetItemId) return
+    if (isSavingDraft || isHydratingDraft) return
+
+    const payload = buildDraftPayload()
+    const payloadKey = JSON.stringify(payload)
+    if (payloadKey === lastAutosavePayloadRef.current) return
+
+    const saveDraft = async () => {
+      setIsAutosaving(true)
+      const response = await GraphQLClient.mutate<{
+        upsertAnnotationDraft: { id: string; status: string }
+      }>(UPSERT_ANNOTATION_DRAFT_MUTATION, ServicePort.GRAPHQL, {
+        variables: {
+          input: {
+            annotationSetId: annotationSetId,
+            datasetItemId: resolvedDatasetItemId,
+            payload,
+            status: "DRAFT",
+          },
+        },
+      })
+
+      if (!response.success || !response.data?.upsertAnnotationDraft) {
+        const message =
+          response.errors?.[0]?.message ?? "Failed to autosave annotation draft."
+        setSaveError(message)
+        setIsAutosaving(false)
+        return
+      }
+
+      lastAutosavePayloadRef.current = payloadKey
+      setIsAutosaving(false)
+    }
+
+    saveDraft()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autosaveTick, annotationSetId, resolvedDatasetItemId, isSavingDraft, isHydratingDraft])
 
   const handleCommitAnnotations = async () => {
     if (!annotationSetId || !resolvedDatasetItemId) {
@@ -975,19 +1436,21 @@ const DatasetLabelerPage = () => {
     setSaveSuccess(null)
 
     const response = await GraphQLClient.mutate<{
-      upsertAnnotationDraft: { id: string; status: string }
-    }>(UPSERT_ANNOTATION_DRAFT_MUTATION, ServicePort.GRAPHQL, {
+      commitAnnotationDraft: {
+        annotationRevisionId: string
+        annotationIds: string[]
+      }
+    }>(COMMIT_ANNOTATION_DRAFT_MUTATION, ServicePort.GRAPHQL, {
       variables: {
         input: {
           annotationSetId: annotationSetId,
           datasetItemId: resolvedDatasetItemId,
-          payload: buildDraftPayload(),
-          status: "COMMITTED",
+          payload: buildDraftPayload(new Date().toISOString()),
         },
       },
     })
 
-    if (!response.success || !response.data?.upsertAnnotationDraft) {
+    if (!response.success || !response.data?.commitAnnotationDraft) {
       const message =
         response.errors?.[0]?.message ?? "Failed to save annotation draft."
       setSaveError(message)
@@ -995,7 +1458,9 @@ const DatasetLabelerPage = () => {
       return
     }
 
-    setSaveSuccess(`Saved draft ${response.data.upsertAnnotationDraft.id}.`)
+    setSaveSuccess(
+      `Committed revision ${response.data.commitAnnotationDraft.annotationRevisionId}.`
+    )
     setIsSavingDraft(false)
   }
 
@@ -1022,79 +1487,11 @@ const DatasetLabelerPage = () => {
           minHeight: 0,
         }}
       >
-        <Box
-          sx={{
-            borderRight: `1px solid ${theme.palette.divider}`,
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-          }}
-        >
-          <Box sx={{ px: 2, pt: 2 }}>
-            <Typography
-              variant="subtitle1"
-              sx={{ fontWeight: theme.custom.font.weight.medium, mb: 1 }}
-            >
-              Files
-            </Typography>
-            <TextField
-              placeholder="Search files"
-              size="small"
-              fullWidth
-              sx={{ mb: 2 }}
-            />
-          </Box>
-          <Box sx={{ overflow: "auto", minHeight: 0, flex: 1 }}>
-            {datasetFiles.map((file, index) => {
-              const status = statusDisplay(file.status)
-              const isActive = file.id === selectedFileId
-              return (
-                <Box
-                  key={file.id}
-                  onClick={() => setSelectedFileId(file.id)}
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "24px 1fr",
-                    alignItems: "center",
-                    gap: 1,
-                    p: 1.5,
-                    cursor: "pointer",
-                    backgroundColor: isActive
-                      ? theme.palette.action.selected
-                      : "transparent",
-                    borderBottom:
-                      index < datasetFiles.length - 1
-                        ? `1px solid ${theme.palette.divider}`
-                        : "none",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      backgroundColor: status.color,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#fff",
-                      fontWeight: 700,
-                      fontSize: theme.custom.font.size.xs,
-                    }}
-                  >
-                    {status.symbol}
-                  </Box>
-                  <Typography
-                    variant="body2"
-                    sx={{ fontWeight: theme.custom.font.weight.medium }}
-                  >
-                    {file.name}
-                  </Typography>
-                </Box>
-              )
-            })}
-          </Box>
-        </Box>
+        <LabelerFileListPanel
+          files={datasetFiles}
+          selectedFileId={selectedFileId}
+          onSelectFile={setSelectedFileId}
+        />
 
         <Box
           sx={{
@@ -1196,8 +1593,10 @@ const DatasetLabelerPage = () => {
                   if (!Number.isFinite(duration) || duration === 0) {
                     setDuration(video.duration || 0)
                   }
-                  if (!isScrubbing)
+                  if (!isScrubbing) {
                     setCurrentTime(video.currentTime)
+                    setDisplayTime(video.currentTime)
+                  }
                 }}
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
@@ -1220,14 +1619,32 @@ const DatasetLabelerPage = () => {
                   const isActive = isActiveAtTime(rect, currentFrame)
                   const preview =
                     dragPreview?.id === rect.id ? dragPreview.rect : null
-                  const display =
-                    preview ??
-                    (isActive
-                      ? getInterpolatedRect(rect, currentFrame)
-                      : isSelected
-                        ? getLastKeyframeRect(rect, currentFrame)
-                        : null)
+                  const pending =
+                    pendingEdits[rect.id]?.frame === currentFrame
+                      ? pendingEdits[rect.id].rect
+                      : null
+                  const shouldInterpolate =
+                    Array.isArray(interpolationKeyframesByLabel[rect.labelId])
+                      ? getSegmentState(
+                          interpolationKeyframesByLabel[rect.labelId],
+                          currentFrame
+                        ).active
+                      : true
+                  const display = (() => {
+                    if (preview) return preview
+                    if (pending) return pending
+                    if (isActive) {
+                      return shouldInterpolate
+                        ? getInterpolatedRect(rect, currentFrame)
+                        : getLastKeyframeRect(rect, currentFrame)
+                    }
+                    if (isSelected) {
+                      return getLastKeyframeRect(rect, currentFrame)
+                    }
+                    return null
+                  })()
                   if (!display) return null
+                  const resolvedDisplay = toDisplayRect(display)
                   const boxColor = isActive
                     ? rect.color
                     : theme.palette.grey[600]
@@ -1236,14 +1653,17 @@ const DatasetLabelerPage = () => {
                       key={rect.id}
                       sx={{
                         position: "absolute",
-                        left: display.x,
-                        top: display.y,
-                        width: display.w,
-                        height: display.h,
+                        left: resolvedDisplay.x,
+                        top: resolvedDisplay.y,
+                        width: resolvedDisplay.w,
+                        height: resolvedDisplay.h,
                         border: `2px solid ${boxColor}`,
                       }}
                     >
-                      <Box
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        alignItems="center"
                         sx={{
                           position: "absolute",
                           top: -18,
@@ -1257,10 +1677,63 @@ const DatasetLabelerPage = () => {
                           fontWeight: theme.custom.font.weight.medium,
                         }}
                       >
-                        {isActive
-                          ? rect.labelName
-                          : `${rect.labelName} · inactive`}
-                      </Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: theme.palette.getContrastText(boxColor),
+                            fontWeight: theme.custom.font.weight.medium,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {isActive
+                            ? rect.labelName
+                            : `${rect.labelName} · inactive`}
+                        </Typography>
+                        <Tooltip title="Add keyframe">
+                          <IconButton
+                            size="small"
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              addKeyframeForAnnotation(
+                                rect.id,
+                                currentFrame
+                              )
+                              queueAutosave()
+                            }}
+                            sx={{
+                              p: 0.25,
+                              color: theme.palette.getContrastText(boxColor),
+                            }}
+                          >
+                            <AddCircleOutlineIcon
+                              sx={{ fontSize: 16 }}
+                            />
+                          </IconButton>
+                        </Tooltip>
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            backgroundColor: shouldInterpolate
+                              ? theme.palette.info.main
+                              : theme.palette.grey[300],
+                            boxShadow: shouldInterpolate
+                              ? `0 0 8px ${theme.palette.info.main}`
+                              : "none",
+                            animation: shouldInterpolate
+                              ? "pulse 1.6s ease-in-out infinite"
+                              : "none",
+                            flexShrink: 0,
+                            "@keyframes pulse": {
+                              "0%": { transform: "scale(1)", opacity: 0.6 },
+                              "50%": { transform: "scale(1.4)", opacity: 1 },
+                              "100%": { transform: "scale(1)", opacity: 0.6 },
+                            },
+                          }}
+                        />
+                      </Stack>
                     </Box>
                   )
                 })}
@@ -1318,16 +1791,16 @@ const DatasetLabelerPage = () => {
                   ))}
               </Box>
             </Box>
-            <Stack spacing={1} sx={{ mt: 1 }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                <Stack direction="row" alignItems="center" spacing={1}>
                 <IconButton onClick={handleTogglePlay}>
                   {isVideoPlaying ? <PauseIcon /> : <PlayArrowIcon />}
                 </IconButton>
                 <Typography variant="caption" sx={{ minWidth: 42 }}>
-                  {formatTime(currentTime)}
+                  {formatTime(displayTime)}
                 </Typography>
                 <Slider
-                  value={currentTime}
+                  value={isScrubbing ? currentTime : displayTime}
                   min={0}
                   max={duration || videoRef.current?.duration || 1}
                   step={0.1}
@@ -1373,303 +1846,67 @@ const DatasetLabelerPage = () => {
                 </Typography>
               )}
             </Stack>
+            <LabelerTimeline
+              activeLabelId={activeLabelId}
+              activeLabelName={activeLabel?.name ?? null}
+              activeLabelColor={activeLabel?.color}
+              activeLabelInterpolation={activeLabelInterpolation}
+              canAddKeyframe={labelAnnotations.length > 0}
+              duration={duration}
+              durationFrames={durationFrames}
+              effectiveFps={effectiveFps}
+              interpolationPoints={interpolationPoints}
+              labelActiveSegments={labelActiveSegments}
+              selectedTimelinePoint={selectedTimelinePoint}
+              timelinePoints={timelinePoints}
+              timelineTicks={timelineTicks}
+              onToggleInterpolation={toggleInterpolationAtCurrentFrame}
+              onAddKeyframe={addKeyframeForLabel}
+              onDeletePoint={handleDeleteTimelinePoint}
+              onSelectPoint={handleTimelinePointSelect}
+              accentButtonSx={accentButtonSx}
+            />
           </Box>
         </Box>
 
-        <Box
-          sx={{
-            borderLeft: `1px solid ${theme.palette.divider}`,
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-            px: 2,
-            py: 2,
+        <LabelerDetailsPanel
+          activeLabelName={activeLabel?.name ?? null}
+          activeMeta={activeMeta}
+          labelNameDraft={labelNameDraft}
+          onLabelNameDraftChange={setLabelNameDraft}
+          onUpdateLabelName={() => {
+            if (!activeLabelId) return
+            handleUpdateMeta({ name: labelNameDraft })
+            queueAutosave()
           }}
-        >
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: theme.custom.font.weight.medium, mb: 1 }}
-          >
-            Label Details
-          </Typography>
-          <Box sx={{ overflow: "auto", minHeight: 0, flex: 1, pr: 0.5 }}>
-            <Stack spacing={2}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: theme.custom.font.weight.medium }}
-                >
-                  Active Label:
-                </Typography>
-                <Box
-                  sx={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: "50%",
-                    backgroundColor: activeMeta?.color ?? theme.palette.divider,
-                  }}
-                />
-                <Typography variant="body2">
-                  {activeLabel?.name ?? "None"}
-                </Typography>
-              </Stack>
-
-              <Divider />
-
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: theme.custom.font.weight.medium, mb: 0.5 }}
-                >
-                  Label Name
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  value={activeMeta?.name ?? ""}
-                  onChange={(event) =>
-                    handleUpdateMeta({ name: event.target.value })
-                  }
-                  sx={{
-                    "& .MuiInputBase-root": {
-                      py: 0.3,
-                      fontSize: theme.custom.font.size.sm,
-                      minHeight: 36,
-                    },
-                  }}
-                />
-              </Box>
-
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: theme.custom.font.weight.medium, mb: 0.5 }}
-                >
-                  Color
-                </Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Box
-                    onClick={handleColorPickerOpen}
-                    sx={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      backgroundColor:
-                        activeMeta?.color ?? theme.palette.divider,
-                      border: `1px solid ${theme.palette.divider}`,
-                      cursor: "pointer",
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    Click to change
-                  </Typography>
-                </Stack>
-                <Popover
-                  open={isColorPickerOpen}
-                  anchorEl={colorAnchorEl}
-                  onClose={handleColorPickerClose}
-                  anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-                  transformOrigin={{ vertical: "top", horizontal: "left" }}
-                >
-                  <Box sx={{ p: 1 }}>
-                    <input
-                      type="color"
-                      value={activeMeta?.color ?? theme.palette.accent1.vibrant}
-                      onChange={(event) =>
-                        handleUpdateMeta({ color: event.target.value })
-                      }
-                      style={{ width: 48, height: 48, border: "none" }}
-                    />
-                  </Box>
-                </Popover>
-              </Box>
-
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: theme.custom.font.weight.medium, mb: 0.5 }}
-                >
-                  Tags
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  {(activeMeta?.tags ?? []).map((tag) => (
-                    <Chip key={tag} label={tag} size="small" />
-                  ))}
-                </Stack>
-                <Stack direction="row" spacing={1} mt={1}>
-                  <TextField
-                    size="small"
-                    placeholder="Add tag"
-                    value={newTag}
-                    onChange={(event) => setNewTag(event.target.value)}
-                    sx={{
-                      "& .MuiInputBase-root": {
-                        py: 0.3,
-                        fontSize: theme.custom.font.size.sm,
-                        minHeight: 34,
-                      },
-                    }}
-                  />
-                  <Button
-                    variant="outlined"
-                    onClick={handleAddTag}
-                    sx={accentButtonSx}
-                  >
-                    Add
-                  </Button>
-                </Stack>
-              </Box>
-
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: theme.custom.font.weight.medium, mb: 0.5 }}
-                >
-                  Notes
-                </Typography>
-                <Stack spacing={1}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Add note at current frame"
-                    value={noteDraft}
-                    onChange={(event) => setNoteDraft(event.target.value)}
-                    multiline
-                    minRows={2}
-                    sx={{
-                      "& .MuiInputBase-root": {
-                        py: 0.3,
-                        fontSize: theme.custom.font.size.sm,
-                      },
-                      "& .MuiInputLabel-root": {
-                        fontSize: theme.custom.font.size.sm,
-                      },
-                    }}
-                  />
-                  <Button
-                    variant="outlined"
-                    onClick={handleAddNote}
-                    disabled={!selectedAnnotationId}
-                    sx={accentButtonSx}
-                  >
-                    Add Note
-                  </Button>
-                  {!selectedAnnotationId && (
-                    <Typography variant="caption" color="text.secondary">
-                      Select a bounding box to anchor the note.
-                    </Typography>
-                  )}
-                  <Divider />
-                  <Stack spacing={1}>
-                    {activeNotes.length === 0 ? (
-                      <Typography variant="caption" color="text.secondary">
-                        No active notes at this frame.
-                      </Typography>
-                    ) : (
-                      activeNotes.map((note) => (
-                        <Box
-                          key={note.id}
-                          sx={{
-                            p: 1,
-                            borderRadius: theme.custom.radii.xs,
-                            border: `1px solid ${theme.palette.divider}`,
-                          }}
-                        >
-                          <Typography variant="caption" color="text.secondary">
-                            Frame {note.frame}
-                          </Typography>
-                          <Typography variant="body2">{note.text}</Typography>
-                        </Box>
-                      ))
-                    )}
-                  </Stack>
-                </Stack>
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: theme.custom.font.weight.medium, mb: 1 }}
-                >
-                  Annotations
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => console.log("Annotations JSON:", annotations)}
-                  sx={{ mb: 1 }}
-                >
-                  Dev: Log annotations
-                </Button>
-                <Stack spacing={1}>
-                  {annotations.map((rect) => (
-                    <Stack
-                      key={rect.id}
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            backgroundColor: rect.color,
-                          }}
-                        />
-                        <Typography variant="body2">
-                          {rect.labelName}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" spacing={1}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => handleToggleAnnotation(rect.id)}
-                          sx={accentButtonSx}
-                        >
-                          {isActiveAtTime(rect, timeToFrame(currentTime))
-                            ? "Active"
-                            : "Inactive"}
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          onClick={() => handleDeleteAnnotation(rect.id)}
-                        >
-                          Delete
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  ))}
-                </Stack>
-              </Box>
-            </Stack>
-          </Box>
-          <Button
-            variant="outlined"
-            onClick={handleCommitAnnotations}
-            disabled={isCommitDisabled}
-            sx={{ ...accentButtonSx, mt: 2 }}
-          >
-            {isSavingDraft ? "Saving..." : "Commit Annotations"}
-          </Button>
-          {saveError && (
-            <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-              {saveError}
-            </Typography>
-          )}
-          {saveSuccess && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-              {saveSuccess}
-            </Typography>
-          )}
-        </Box>
+          isColorPickerOpen={isColorPickerOpen}
+          colorAnchorEl={colorAnchorEl}
+          onColorPickerOpen={handleColorPickerOpen}
+          onColorPickerClose={handleColorPickerClose}
+          onColorChange={(value) => handleUpdateMeta({ color: value })}
+          newTag={newTag}
+          onNewTagChange={setNewTag}
+          onAddTag={handleAddTag}
+          noteDraft={noteDraft}
+          onNoteDraftChange={setNoteDraft}
+          onAddNote={handleAddNote}
+          selectedAnnotationId={selectedAnnotationId}
+          activeNotes={activeNotes}
+          annotations={annotations}
+          onToggleAnnotation={handleToggleAnnotation}
+          onDeleteAnnotation={handleDeleteAnnotation}
+          isAnnotationActive={(rect) =>
+            isActiveAtTime(rect, timeToFrame(currentTime, effectiveFps))
+          }
+          onCommit={handleCommitAnnotations}
+          isCommitDisabled={isCommitDisabled}
+          isSavingDraft={isSavingDraft}
+          isAutosaving={isAutosaving}
+          draftSource={draftSource}
+          saveError={saveError}
+          saveSuccess={saveSuccess}
+          accentButtonSx={accentButtonSx}
+        />
       </Box>
     </Box>
   )

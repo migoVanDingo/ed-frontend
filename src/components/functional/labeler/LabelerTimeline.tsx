@@ -109,7 +109,7 @@ const LabelerTimeline = ({
           sx={{
             position: "relative",
             height: 26,
-            borderRadius: 999,
+            borderRadius: 6,
             backgroundColor: theme.palette.grey[200],
           }}
         >
@@ -145,8 +145,9 @@ const LabelerTimeline = ({
                   top: "50%",
                   height: 6,
                   transform: "translateY(-50%)",
-                  backgroundColor: activeLabelColor ?? theme.palette.primary.main,
-                  borderRadius: 999,
+                  backgroundColor:
+                    activeLabelColor ?? theme.palette.primary.main,
+                  borderRadius: 6,
                   opacity: 0.7,
                 }}
               />

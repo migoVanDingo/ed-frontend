@@ -36,6 +36,7 @@ type LabelerDetailsPanelProps = {
   selectedAnnotationId: string | null
   activeNotes: NoteEntry[]
   annotations: AnnotationRect[]
+  onSelectAnnotation: (rect: AnnotationRect) => void
   onToggleAnnotation: (id: string) => void
   onDeleteAnnotation: (id: string) => void
   isAnnotationActive: (rect: AnnotationRect) => boolean
@@ -69,6 +70,7 @@ const LabelerDetailsPanel = ({
   selectedAnnotationId,
   activeNotes,
   annotations,
+  onSelectAnnotation,
   onToggleAnnotation,
   onDeleteAnnotation,
   isAnnotationActive,
@@ -307,6 +309,8 @@ const LabelerDetailsPanel = ({
                   spacing={1}
                   alignItems="center"
                   justifyContent="space-between"
+                  onClick={() => onSelectAnnotation(rect)}
+                  sx={{ cursor: "pointer" }}
                 >
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Box

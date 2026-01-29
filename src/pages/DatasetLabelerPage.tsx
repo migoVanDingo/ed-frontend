@@ -35,7 +35,6 @@ import {
   getTimelineTickInterval,
   isActiveAtTime,
   isNormalizedRect,
-  mergeSegments,
   timeToFrame,
 } from "../utils/labeler/labelerUtils"
 import type {
@@ -78,17 +77,6 @@ const DatasetLabelerPage = () => {
       color: theme.palette.accent1.vibrant,
     },
   ])
-  useEffect(() => {
-    setInterpolationKeyframesByLabel((prev) => {
-      const next = { ...prev }
-      labels.forEach((label) => {
-        if (!Array.isArray(next[label.id])) {
-          next[label.id] = [{ frame: 0, active: false }]
-        }
-      })
-      return next
-    })
-  }, [labels])
 
   const [selectedFileId, setSelectedFileId] = useState<string | null>(
     datasetFiles[0]?.id ?? null
@@ -143,6 +131,20 @@ const DatasetLabelerPage = () => {
     id: string
     rect: RectShape
   } | null>(null)
+  useEffect(() => {
+    setInterpolationKeyframesByAnnotation((prev) => {
+      if (annotations.length === 0) return prev
+      const next = { ...prev }
+      let mutated = false
+      annotations.forEach((rect) => {
+        if (!Array.isArray(next[rect.id])) {
+          next[rect.id] = [{ frame: 0, active: false }]
+          mutated = true
+        }
+      })
+      return mutated ? next : prev
+    })
+  }, [annotations])
   const [pendingEdits, setPendingEdits] = useState<
     Record<string, { frame: number; rect: RectShape }>
   >({})
@@ -163,7 +165,7 @@ const DatasetLabelerPage = () => {
     null
   )
   const [draftFps, setDraftFps] = useState<number | null>(null)
-  const [interpolationKeyframesByLabel, setInterpolationKeyframesByLabel] =
+  const [interpolationKeyframesByAnnotation, setInterpolationKeyframesByAnnotation] =
     useState<Record<string, ActiveKeyframe[]>>(() => ({}))
   const [selectedTimelinePoint, setSelectedTimelinePoint] = useState<{
     annotationId: string
@@ -228,7 +230,7 @@ const DatasetLabelerPage = () => {
     setDragStartRect(null)
     setDragPreview(null)
     setPendingEdits({})
-    setInterpolationKeyframesByLabel({ [baseLabel.id]: [{ frame: 0, active: false }] })
+    setInterpolationKeyframesByAnnotation({})
     setDraftFps(null)
     setDraftSource(null)
     setDraftStatus(null)
@@ -709,21 +711,24 @@ const DatasetLabelerPage = () => {
   }
 
   const toggleInterpolationAtCurrentFrame = () => {
-    if (!activeLabelId) return
+    const targetId =
+      selectedAnnotationId ??
+      (activeLabelId
+        ? annotations.find((rect) => rect.labelId === activeLabelId)?.id ?? null
+        : null)
+    if (!targetId) return
     const frame = currentFrame
-    const keyframes = interpolationKeyframesByLabel[activeLabelId] ?? [
-      { frame: 0, active: true },
+    const keyframes = interpolationKeyframesByAnnotation[targetId] ?? [
+      { frame: 0, active: false },
     ]
     const currentState = getSegmentState(keyframes, frame).active
     const nextFrames = keyframes.filter((kf) => kf.frame !== frame)
     nextFrames.push({ frame, active: !currentState })
-    setInterpolationKeyframesByLabel((prev) => ({
+    setInterpolationKeyframesByAnnotation((prev) => ({
       ...prev,
-      [activeLabelId]: nextFrames,
+      [targetId]: nextFrames,
     }))
-    labelAnnotations.forEach((annotation) => {
-      addKeyframeForAnnotation(annotation.id, frame)
-    })
+    addKeyframeForAnnotation(targetId, frame)
     queueAutosave()
   }
 
@@ -907,6 +912,7 @@ const DatasetLabelerPage = () => {
     const hit = findHoveredHandle(point)
     if (hit && hit.display) {
       setSelectedAnnotationId(hit.rect.id)
+      setActiveLabelId(hit.rect.labelId)
       setDragHandle(hit.handle)
       setDragStartPoint(point)
       setDragStartRect(hit.display)
@@ -989,6 +995,10 @@ const DatasetLabelerPage = () => {
     }
 
     setAnnotations((prev) => [...prev, annotation])
+    setInterpolationKeyframesByAnnotation((prev) => ({
+      ...prev,
+      [annotation.id]: [{ frame: 0, active: false }],
+    }))
     setSelectedAnnotationId(annotation.id)
     setCurrentRect(null)
     setStartPoint(null)
@@ -1079,44 +1089,52 @@ const DatasetLabelerPage = () => {
     "&:hover": { backgroundColor: theme.palette.accent1.dim },
   }
 
-  const activeLabelInterpolation = activeLabelId
-    ? Array.isArray(interpolationKeyframesByLabel[activeLabelId])
-      ? getSegmentState(
-          interpolationKeyframesByLabel[activeLabelId],
-          currentFrame
-        ).active
-      : true
-    : false
   const labelAnnotations = activeLabelId
     ? annotations.filter((rect) => rect.labelId === activeLabelId)
     : []
   const durationFrames = Math.max(timeToFrame(duration, effectiveFps), 0)
-  const labelActiveSegments = mergeSegments(
-    labelAnnotations.flatMap((rect) =>
-      getActiveSegments(rect.activeKeyframes, durationFrames)
-    )
-  )
-  const timelinePoints = labelAnnotations.flatMap((rect) => {
-    const keyframes = rect.keyframes.map((kf) => ({
-      annotationId: rect.id,
-      frame: kf.frame,
-      type: "keyframe" as const,
-    }))
-    const toggles = rect.activeKeyframes.map((kf) => ({
-      annotationId: rect.id,
-      frame: kf.frame,
-      type: "toggle" as const,
-      active: kf.active,
-    }))
-    return [...keyframes, ...toggles]
-  })
-  const interpolationPoints = activeLabelId
-    ? (interpolationKeyframesByLabel[activeLabelId] ?? []).map((kf) => ({
-        annotationId: activeLabelId,
-        frame: kf.frame,
-        type: "interpolation" as const,
-        active: kf.active,
-      }))
+  const selectedById = annotations.find((rect) => rect.id === selectedAnnotationId)
+  const selectedTimelineAnnotation =
+    selectedById && (!activeLabelId || selectedById.labelId === activeLabelId)
+      ? selectedById
+      : labelAnnotations[0]
+  const activeLabelInterpolation = selectedTimelineAnnotation
+    ? Array.isArray(
+        interpolationKeyframesByAnnotation[selectedTimelineAnnotation.id]
+      )
+      ? getSegmentState(
+          interpolationKeyframesByAnnotation[selectedTimelineAnnotation.id],
+          currentFrame
+        ).active
+      : false
+    : false
+  const labelActiveSegments = selectedTimelineAnnotation
+    ? getActiveSegments(selectedTimelineAnnotation.activeKeyframes, durationFrames)
+    : []
+  const timelinePoints = selectedTimelineAnnotation
+    ? [
+        ...selectedTimelineAnnotation.keyframes.map((kf) => ({
+          annotationId: selectedTimelineAnnotation.id,
+          frame: kf.frame,
+          type: "keyframe" as const,
+        })),
+        ...selectedTimelineAnnotation.activeKeyframes.map((kf) => ({
+          annotationId: selectedTimelineAnnotation.id,
+          frame: kf.frame,
+          type: "toggle" as const,
+          active: kf.active,
+        })),
+      ]
+    : []
+  const interpolationPoints = selectedTimelineAnnotation
+    ? (interpolationKeyframesByAnnotation[selectedTimelineAnnotation.id] ?? []).map(
+        (kf) => ({
+          annotationId: selectedTimelineAnnotation.id,
+          frame: kf.frame,
+          type: "interpolation" as const,
+          active: kf.active,
+        })
+      )
     : []
   const timelineTicks = duration
     ? Array.from(
@@ -1124,6 +1142,20 @@ const DatasetLabelerPage = () => {
         (_, idx) => idx * getTimelineTickInterval(duration)
       ).filter((value) => value > 0 && value < duration)
     : []
+
+  useEffect(() => {
+    if (!activeLabelId) return
+    if (
+      selectedAnnotationId &&
+      annotations.some(
+        (rect) => rect.id === selectedAnnotationId && rect.labelId === activeLabelId
+      )
+    ) {
+      return
+    }
+    const next = annotations.find((rect) => rect.labelId === activeLabelId)
+    setSelectedAnnotationId(next?.id ?? null)
+  }, [activeLabelId, annotations, selectedAnnotationId])
 
   useEffect(() => {
     setPendingEdits((prev) => {
@@ -1244,7 +1276,7 @@ const DatasetLabelerPage = () => {
     fps: effectiveFps,
     duration,
     ...(savedAt ? { savedAt } : {}),
-    interpolationKeyframesByLabel,
+    interpolationKeyframesByAnnotation,
   })
 
   const applyDraftPayload = (payload: any) => {
@@ -1283,10 +1315,15 @@ const DatasetLabelerPage = () => {
       setActiveLabelId(payload.activeLabelId)
     }
     if (
+      payload.interpolationKeyframesByAnnotation &&
+      typeof payload.interpolationKeyframesByAnnotation === "object"
+    ) {
+      setInterpolationKeyframesByAnnotation(payload.interpolationKeyframesByAnnotation)
+    } else if (
       payload.interpolationKeyframesByLabel &&
       typeof payload.interpolationKeyframesByLabel === "object"
     ) {
-      setInterpolationKeyframesByLabel(payload.interpolationKeyframesByLabel)
+      setInterpolationKeyframesByAnnotation({})
     }
     if (typeof payload.fps === "number" && Number.isFinite(payload.fps)) {
       setDraftFps(payload.fps)
@@ -1624,12 +1661,12 @@ const DatasetLabelerPage = () => {
                       ? pendingEdits[rect.id].rect
                       : null
                   const shouldInterpolate =
-                    Array.isArray(interpolationKeyframesByLabel[rect.labelId])
+                    Array.isArray(interpolationKeyframesByAnnotation[rect.id])
                       ? getSegmentState(
-                          interpolationKeyframesByLabel[rect.labelId],
+                          interpolationKeyframesByAnnotation[rect.id],
                           currentFrame
                         ).active
-                      : true
+                      : false
                   const display = (() => {
                     if (preview) return preview
                     if (pending) return pending
@@ -1648,6 +1685,7 @@ const DatasetLabelerPage = () => {
                   const boxColor = isActive
                     ? rect.color
                     : theme.palette.grey[600]
+                  const isActiveLabel = rect.labelId === activeLabelId
                   return (
                     <Box
                       key={rect.id}
@@ -1658,6 +1696,11 @@ const DatasetLabelerPage = () => {
                         width: resolvedDisplay.w,
                         height: resolvedDisplay.h,
                         border: `2px solid ${boxColor}`,
+                        zIndex: isActiveLabel
+                          ? 3
+                          : rect.id === selectedAnnotationId
+                            ? 2
+                            : 1,
                       }}
                     >
                       <Stack
@@ -1855,8 +1898,8 @@ const DatasetLabelerPage = () => {
               duration={duration}
               durationFrames={durationFrames}
               effectiveFps={effectiveFps}
-              interpolationPoints={interpolationPoints}
               labelActiveSegments={labelActiveSegments}
+              interpolationPoints={interpolationPoints}
               selectedTimelinePoint={selectedTimelinePoint}
               timelinePoints={timelinePoints}
               timelineTicks={timelineTicks}
@@ -1893,6 +1936,10 @@ const DatasetLabelerPage = () => {
           selectedAnnotationId={selectedAnnotationId}
           activeNotes={activeNotes}
           annotations={annotations}
+          onSelectAnnotation={(rect) => {
+            setSelectedAnnotationId(rect.id)
+            setActiveLabelId(rect.labelId)
+          }}
           onToggleAnnotation={handleToggleAnnotation}
           onDeleteAnnotation={handleDeleteAnnotation}
           isAnnotationActive={(rect) =>

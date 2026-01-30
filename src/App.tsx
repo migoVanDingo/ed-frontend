@@ -10,6 +10,7 @@ import AuthLayout from "./components/layout/AuthLayout";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import AdminLayout from "./components/layout/AdminLayout";
 import LabelerLayout from "./components/layout/LabelerLayout";
+import ActivityMapLayout from "./components/layout/ActivityMapLayout";
 
 // Pages
 import LoginPage from "./pages/LoginPage";
@@ -31,6 +32,7 @@ import { datastoreDashboardLoader } from "./loaders/datastoreDashboardLoader";
 import DatasetEditPage from "./pages/DatasetEditPage";
 import { datasetEditLoader } from "./loaders/datasetEditLoader";
 import DatasetLabelerPage from "./pages/DatasetLabelerPage";
+import DatasetActivityMapPage from "./pages/DatasetActivityMapPage";
 import { datasetLabelerLoader } from "./loaders/datasetLabelerLoader";
 
 // ─────────────────────────────────────────
@@ -275,6 +277,23 @@ const router = createBrowserRouter([
             path: "dataset/:datasetId",
             id: "dataset-labeler",
             element: <DatasetLabelerPage />,
+            loader: datasetLabelerLoader,
+            action: async () => null,
+            errorElement: <ErrorPage />,
+          },
+        ],
+      },
+      {
+        path: "activity-map",
+        element: <ActivityMapLayout />,
+        id: "activity-map-layout",
+        loader: withMiddlewareLoader([requireUser]),
+        errorElement: <ErrorPage />,
+        children: [
+          {
+            path: "dataset/:datasetId",
+            id: "dataset-activity-map",
+            element: <DatasetActivityMapPage />,
             loader: datasetLabelerLoader,
             action: async () => null,
             errorElement: <ErrorPage />,

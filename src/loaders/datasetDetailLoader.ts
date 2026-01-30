@@ -50,7 +50,7 @@ export async function datasetDetailLoader({ params }: LoaderFunctionArgs) {
       description: dataset.description,
       datastoreId,
     },
-    datasetItems: dataset.fileLinks ?? [],
+    datasetItems: dataset.items ?? [],
     datastoreFiles: filesPage?.items ?? [],
     datastoreFilesMeta: {
       totalCount: filesPage?.totalCount ?? 0,

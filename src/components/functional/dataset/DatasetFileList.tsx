@@ -19,11 +19,13 @@ export type DatasetFileRow = {
   sizeBytes?: number
   uploadedAt?: string
   status?: string
+  hasAnnotation?: boolean
 }
 
 type DatasetFileListProps = {
   files: DatasetFileRow[]
   onLaunchLabeler?: (fileId: string) => void
+  onLaunchActivityMap?: (fileId: string) => void
 }
 
 const formatBytes = (size?: number) => {
@@ -44,10 +46,15 @@ const formatTypeLabel = (value?: string) => {
   return value.toUpperCase()
 }
 
-const DatasetFileList = ({ files, onLaunchLabeler }: DatasetFileListProps) => {
+const DatasetFileList = ({
+  files,
+  onLaunchLabeler,
+  onLaunchActivityMap,
+}: DatasetFileListProps) => {
   const theme = useTheme()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
+  const [menuRowHasAnnotation, setMenuRowHasAnnotation] = useState(false)
 
   const handleMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
@@ -55,16 +62,25 @@ const DatasetFileList = ({ files, onLaunchLabeler }: DatasetFileListProps) => {
   ) => {
     setAnchorEl(event.currentTarget)
     setMenuRowId(rowId)
+    const row = files.find((file) => file.id === rowId)
+    setMenuRowHasAnnotation(Boolean(row?.hasAnnotation))
   }
 
   const handleMenuClose = () => {
     setAnchorEl(null)
     setMenuRowId(null)
+    setMenuRowHasAnnotation(false)
   }
 
   const handleLaunchLabeler = () => {
     if (!menuRowId) return
     onLaunchLabeler?.(menuRowId)
+    handleMenuClose()
+  }
+
+  const handleLaunchActivityMap = () => {
+    if (!menuRowId || !menuRowHasAnnotation) return
+    onLaunchActivityMap?.(menuRowId)
     handleMenuClose()
   }
 
@@ -257,6 +273,12 @@ const DatasetFileList = ({ files, onLaunchLabeler }: DatasetFileListProps) => {
         onClose={handleMenuClose}
       >
         <MenuItem onClick={handleLaunchLabeler}>Launch labeler</MenuItem>
+        <MenuItem
+          onClick={handleLaunchActivityMap}
+          disabled={!menuRowHasAnnotation || !onLaunchActivityMap}
+        >
+          Activity Map
+        </MenuItem>
         <MenuItem onClick={handleMenuClose}>View</MenuItem>
         <MenuItem onClick={handleMenuClose}>Remove from dataset</MenuItem>
       </Menu>

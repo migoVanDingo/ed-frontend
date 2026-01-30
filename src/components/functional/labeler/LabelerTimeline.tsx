@@ -23,6 +23,10 @@ type LabelerTimelineProps = {
   onDeletePoint: () => void
   onSelectPoint: (point: TimelinePoint, timeSeconds: number) => void
   accentButtonSx: Record<string, unknown>
+  showControls?: boolean
+  showHeader?: boolean
+  showTopBorder?: boolean
+  currentTimeSeconds?: number
 }
 
 const LabelerTimeline = ({
@@ -44,67 +48,79 @@ const LabelerTimeline = ({
   onDeletePoint,
   onSelectPoint,
   accentButtonSx,
+  showControls = true,
+  showHeader = true,
+  showTopBorder = true,
+  currentTimeSeconds,
 }: LabelerTimelineProps) => {
   const theme = useTheme()
 
   return (
     <Box
       sx={{
-        mt: 2,
-        pt: 1,
-        borderTop: `1px solid ${theme.palette.divider}`,
+        mt: showTopBorder ? 2 : 0,
+        pt: showTopBorder ? 1 : 0,
+        borderTop: showTopBorder ? `1px solid ${theme.palette.divider}` : "none",
       }}
     >
       <Stack spacing={0.75}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Typography
-            variant="subtitle2"
-            sx={{ fontWeight: theme.custom.font.weight.medium }}
-          >
-            Label Timeline
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {activeLabelName ?? "Select a label"}
-          </Typography>
-          <Box sx={{ flex: 1 }} />
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={onToggleInterpolation}
-            disabled={!activeLabelId}
-            sx={
-              activeLabelInterpolation
-                ? accentButtonSx
-                : {
-                    borderColor: theme.palette.grey[400],
-                    color: theme.palette.text.secondary,
-                    "&:hover": {
-                      backgroundColor: theme.palette.action.hover,
-                    },
+        {showHeader && (
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography
+              variant="subtitle2"
+              sx={{ fontWeight: theme.custom.font.weight.medium }}
+            >
+              Label Timeline
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {activeLabelName ?? "Select a label"}
+            </Typography>
+            <Box sx={{ flex: 1 }} />
+            {showControls && (
+              <>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={onToggleInterpolation}
+                  disabled={!activeLabelId}
+                  sx={
+                    activeLabelInterpolation
+                      ? accentButtonSx
+                      : {
+                          borderColor: theme.palette.grey[400],
+                          color: theme.palette.text.secondary,
+                          "&:hover": {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }
                   }
-            }
-          >
-            {activeLabelInterpolation ? "Interpolation On" : "Interpolation Off"}
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={onAddKeyframe}
-            disabled={!activeLabelId || !canAddKeyframe}
-            sx={accentButtonSx}
-          >
-            Add Keyframe
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            onClick={onDeletePoint}
-            disabled={!selectedTimelinePoint}
-          >
-            Delete Point
-          </Button>
-        </Stack>
+                >
+                  {activeLabelInterpolation
+                    ? "Interpolation On"
+                    : "Interpolation Off"}
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={onAddKeyframe}
+                  disabled={!activeLabelId || !canAddKeyframe}
+                  sx={accentButtonSx}
+                >
+                  Add Keyframe
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  onClick={onDeletePoint}
+                  disabled={!selectedTimelinePoint}
+                >
+                  Delete Point
+                </Button>
+              </>
+            )}
+          </Stack>
+        )}
         <Box
           sx={{
             position: "relative",
@@ -113,6 +129,23 @@ const LabelerTimeline = ({
             backgroundColor: theme.palette.grey[200],
           }}
         >
+          {typeof currentTimeSeconds === "number" && duration > 0 && (
+            <Box
+              sx={{
+                position: "absolute",
+                left: `${Math.min(
+                  Math.max(currentTimeSeconds / duration, 0),
+                  1
+                ) * 100}%`,
+                top: 0,
+                bottom: 0,
+                width: 2,
+                backgroundColor: theme.palette.accent1.vibrant,
+                transform: "translateX(-1px)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
           {timelineTicks.map((tick) => {
             if (!duration) return null
             const left = Math.min(Math.max(tick / duration, 0), 1)

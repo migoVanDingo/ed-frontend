@@ -42,6 +42,9 @@ const DatasetDetailPage = () => {
 
   const datasetFiles: DatasetFileRow[] = loaderData.datasetItems.map((item) => {
     const file = filesById.get(item.fileId)
+    const normalizedStatus = (item.status ?? "").toString().toLowerCase()
+    const hasAnnotation =
+      normalizedStatus.length > 0 && normalizedStatus !== "new"
     return {
       id: item.fileId,
       name: file?.filename ?? item.fileId,
@@ -56,6 +59,7 @@ const DatasetDetailPage = () => {
           ).toISOString()
         : item.createdAt ?? undefined,
       status: item.status ?? undefined,
+      hasAnnotation,
     }
   })
   const defaultFileId = datasetFiles[0]?.id
@@ -63,6 +67,11 @@ const DatasetDetailPage = () => {
     const targetId = fileId || defaultFileId
     const query = targetId ? `?fileId=${encodeURIComponent(targetId)}` : ""
     navigate(`/labeler/dataset/${loaderData.dataset.id}${query}`)
+  }
+  const handleLaunchActivityMap = (fileId?: string | null) => {
+    const targetId = fileId || defaultFileId
+    const query = targetId ? `?fileId=${encodeURIComponent(targetId)}` : ""
+    navigate(`/activity-map/dataset/${loaderData.dataset.id}${query}`)
   }
 
   return (
@@ -149,6 +158,7 @@ const DatasetDetailPage = () => {
           <DatasetFileList
             files={datasetFiles}
             onLaunchLabeler={(fileId) => handleLaunchLabeler(fileId)}
+            onLaunchActivityMap={(fileId) => handleLaunchActivityMap(fileId)}
           />
         </Grid>
 

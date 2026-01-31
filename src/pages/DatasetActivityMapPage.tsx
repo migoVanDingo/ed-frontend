@@ -1,5 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Box, Button, IconButton, Slider, Stack, Typography } from "@mui/material"
+import {
+  Box,
+  Button,
+  Checkbox,
+  FormControl,
+  FormControlLabel,
+  FormGroup,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  OutlinedInput,
+  Select,
+  Slider,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material"
 import { useTheme } from "@mui/material/styles"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow"
 import PauseIcon from "@mui/icons-material/Pause"
@@ -10,12 +28,11 @@ import { GET_OR_CREATE_ANNOTATION_SET_MUTATION } from "../graphql/mutation/annot
 import { ANNOTATION_DRAFT_QUERY } from "../graphql/query/annotationDraft"
 import { FILE_SIGNED_URL_QUERY } from "../graphql/query/fileQuery"
 import LabelerFileListPanel from "../components/functional/labeler/LabelerFileListPanel"
-import LabelerTimeline from "../components/functional/labeler/LabelerTimeline"
+import ActivityMapTimeline from "../components/functional/activityMap/ActivityMapTimeline"
 import {
   FPS,
   clamp,
   formatTime,
-  getActiveSegments,
   getInterpolatedRect,
   getLastKeyframeRect,
   getTimelineTickInterval,
@@ -64,9 +81,9 @@ const DatasetActivityMapPage = () => {
   const [videoUrl, setVideoUrl] = useState(sampleVideoUrl)
   const [videoUrlError, setVideoUrlError] = useState<string | null>(null)
   const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null)
-  const [selectedTimelinePoint, setSelectedTimelinePoint] = useState<TimelinePoint | null>(
-    null
-  )
+  const [groupBy, setGroupBy] = useState<"label" | "tag">("label")
+  const [labelFilter, setLabelFilter] = useState("")
+  const [selectedDatasetIds, setSelectedDatasetIds] = useState<string[]>([])
   const [videoBounds, setVideoBounds] = useState<VideoBounds>({
     left: 0,
     top: 0,
@@ -90,21 +107,53 @@ const DatasetActivityMapPage = () => {
     typeof draftFps === "number" && Number.isFinite(draftFps) ? draftFps : null
   const safeMetaFps = Number.isFinite(metaFps) ? metaFps : null
   const effectiveFps = safeDraftFps ?? safeMetaFps ?? FPS
-  const durationFrames = Math.max(timeToFrame(duration, effectiveFps), 0)
-  const timelineTicks = duration
+  const timelineDuration = useMemo(() => {
+    if (duration > 0) return duration
+    let maxFrame = 0
+    annotations.forEach((annotation) => {
+      annotation.keyframes.forEach((kf) => {
+        const value = Number(kf.frame)
+        if (Number.isFinite(value) && value > maxFrame) maxFrame = value
+      })
+      annotation.activeKeyframes.forEach((kf) => {
+        const value = Number(kf.frame)
+        if (Number.isFinite(value) && value > maxFrame) maxFrame = value
+      })
+    })
+    if (maxFrame <= 0) return 0
+    return maxFrame / effectiveFps
+  }, [annotations, duration, effectiveFps])
+  const durationFrames = Math.max(timeToFrame(timelineDuration, effectiveFps), 0)
+  const timelineTicks = timelineDuration
     ? Array.from(
-        { length: Math.floor(duration / getTimelineTickInterval(duration)) + 1 },
-        (_, idx) => idx * getTimelineTickInterval(duration)
-      ).filter((value) => value > 0 && value < duration)
+        {
+          length:
+            Math.floor(
+              timelineDuration / getTimelineTickInterval(timelineDuration)
+            ) + 1,
+        },
+        (_, idx) => idx * getTimelineTickInterval(timelineDuration)
+      ).filter((value) => value > 0 && value < timelineDuration)
     : []
   const currentFrame = timeToFrame(currentTime, effectiveFps)
+
+  const labelOptions = useMemo(() => {
+    const unique = new Map<string, string>()
+    annotations.forEach((annotation) => {
+      const name = annotation.labelName || annotation.labelId
+      if (!unique.has(annotation.labelId)) unique.set(annotation.labelId, name)
+    })
+    return Array.from(unique.entries()).map(([id, name]) => ({ id, name }))
+  }, [annotations])
+  const filteredLabels = labelOptions.filter((label) =>
+    label.name.toLowerCase().includes(labelFilter.trim().toLowerCase())
+  )
 
   const resetActivityMapState = useCallback(() => {
     setAnnotations([])
     setInterpolationKeyframesByAnnotation({})
     setDraftFps(null)
     setSelectedLabelId(null)
-    setSelectedTimelinePoint(null)
     setCurrentTime(0)
     setDisplayTime(0)
     setDuration(0)
@@ -473,7 +522,6 @@ const DatasetActivityMapPage = () => {
     video.currentTime = clamped
     setCurrentTime(clamped)
     setDisplayTime(clamped)
-    setSelectedTimelinePoint(point)
   }
 
   const sortedAnnotations = useMemo(
@@ -484,27 +532,8 @@ const DatasetActivityMapPage = () => {
     [annotations]
   )
 
-  const buildTimelinePoints = (annotation: AnnotationRect) => [
-    ...annotation.keyframes.map((kf) => ({
-      annotationId: annotation.id,
-      frame: kf.frame,
-      type: "keyframe" as const,
-    })),
-    ...annotation.activeKeyframes.map((kf) => ({
-      annotationId: annotation.id,
-      frame: kf.frame,
-      type: "toggle" as const,
-      active: kf.active,
-    })),
-  ]
-
   const buildInterpolationPoints = (annotation: AnnotationRect) =>
-    (interpolationKeyframesByAnnotation[annotation.id] ?? []).map((kf) => ({
-      annotationId: annotation.id,
-      frame: kf.frame,
-      type: "interpolation" as const,
-      active: kf.active,
-    }))
+    interpolationKeyframesByAnnotation[annotation.id] ?? []
 
   const accentButtonSx = {
     borderColor: theme.palette.accent1.vibrant,
@@ -553,9 +582,97 @@ const DatasetActivityMapPage = () => {
               minHeight: 0,
             }}
           >
-            <Typography variant="h5" sx={{ fontWeight: 200 }}>
-              Toggles & Controls
-            </Typography>
+            <Stack spacing={2}>
+              <Typography variant="h5" sx={{ fontWeight: 200 }}>
+                Toggles & Controls
+              </Typography>
+              <ToggleButtonGroup
+                value={groupBy}
+                exclusive
+                size="small"
+                onChange={(_, value) => {
+                  if (value) setGroupBy(value)
+                }}
+              >
+                <ToggleButton value="label">Group by Label</ToggleButton>
+                <ToggleButton value="tag">Group by Tag</ToggleButton>
+              </ToggleButtonGroup>
+              <FormControl size="small" fullWidth>
+                <InputLabel id="activity-map-datasets-label">Datasets</InputLabel>
+                <Select
+                  labelId="activity-map-datasets-label"
+                  multiple
+                  value={
+                    selectedDatasetIds.length
+                      ? selectedDatasetIds
+                      : loaderData.dataset?.id
+                      ? [loaderData.dataset.id]
+                      : []
+                  }
+                  onChange={(event) =>
+                    setSelectedDatasetIds(event.target.value as string[])
+                  }
+                  input={<OutlinedInput label="Datasets" />}
+                  renderValue={(selected) => {
+                    if (!selected.length) return "No datasets"
+                    if (selected.length === 1 && loaderData.dataset?.name) {
+                      return loaderData.dataset.name
+                    }
+                    return `${selected.length} datasets selected`
+                  }}
+                >
+                  {loaderData.dataset?.id && (
+                    <MenuItem value={loaderData.dataset.id}>
+                      {loaderData.dataset.name ?? "Current Dataset"}
+                    </MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+              <TextField
+                size="small"
+                label={groupBy === "label" ? "Filter labels" : "Filter tags"}
+                value={labelFilter}
+                onChange={(event) => setLabelFilter(event.target.value)}
+              />
+              <Box sx={{ minHeight: 0 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Labels
+                </Typography>
+                {filteredLabels.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No labels found.
+                  </Typography>
+                ) : (
+                  <FormGroup
+                    sx={{
+                      maxHeight: 160,
+                      overflowY: "auto",
+                      overflowX: "hidden",
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: theme.custom.radii.xs,
+                      p: 1,
+                      display: "block",
+                    }}
+                  >
+                    {filteredLabels.map((label) => (
+                      <FormControlLabel
+                        key={label.id}
+                        control={<Checkbox defaultChecked size="small" />}
+                        label={label.name}
+                      />
+                    ))}
+                  </FormGroup>
+                )}
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Tags
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No tags available yet.
+                </Typography>
+              </Box>
+            </Stack>
           </Box>
 
           <Box
@@ -734,84 +851,249 @@ const DatasetActivityMapPage = () => {
                 No annotations available yet.
               </Typography>
             ) : (
-              <Box
-                sx={{
-                  flex: 1,
-                  minHeight: 0,
-                  overflow: "auto",
-                }}
-              >
-                <Stack spacing={0}>
-                  {sortedAnnotations.map((annotation) => {
-                    const isSelected = selectedLabelId === annotation.labelId
-                    const timelinePoints = buildTimelinePoints(annotation)
-                    const interpolationPoints = buildInterpolationPoints(annotation)
-                    const labelActiveSegments = getActiveSegments(
-                      annotation.activeKeyframes,
-                      durationFrames
-                    )
-                    return (
-                      <Box
-                        key={annotation.id}
-                        sx={{
-                          display: "grid",
-                          gridTemplateColumns: "140px minmax(0, 1fr)",
-                          gap: 0,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Typography
-                          variant="subtitle2"
+              <Stack sx={{ flex: 1, minHeight: 0 }} spacing={0}>
+                <Box
+                  sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflow: "auto",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "220px minmax(0, 1fr)",
+                      gap: 2,
+                      minHeight: "100%",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0,
+                        overflow: "auto",
+                        pr: 1,
+                        minHeight: 0,
+                        height: "100%",
+                      }}
+                    >
+                      {sortedAnnotations.map((annotation) => (
+                        <Box
+                          key={annotation.id}
                           sx={{
-                            fontWeight: theme.custom.font.weight.bold,
-                            fontSize: theme.custom.font.size.md,
-                            color: theme.palette.text.primary,
-                            cursor: "pointer",
-                          }}
-                          onClick={() =>
-                            handleSelectLabel(annotation.labelId, annotation.labelName)
-                          }
+                          display: "flex",
+                          alignItems: "center",
+                          flex: "1 1 0",
+                          minHeight: 48,
+                          px: 1,
+                        }}
                         >
-                          {annotation.labelName || annotation.labelId}
-                        </Typography>
-                        <Box sx={{ px: 0, py: 0 }}>
-                          <LabelerTimeline
-                            activeLabelId={annotation.labelId}
-                            activeLabelName={annotation.labelName}
-                            activeLabelColor={annotation.color}
-                            activeLabelInterpolation={false}
-                            canAddKeyframe={false}
-                            duration={duration}
-                            durationFrames={durationFrames}
-                            effectiveFps={effectiveFps}
-                            labelActiveSegments={labelActiveSegments}
-                            interpolationPoints={interpolationPoints}
-                            selectedTimelinePoint={selectedTimelinePoint}
-                            timelinePoints={timelinePoints}
-                            timelineTicks={timelineTicks}
-                            onToggleInterpolation={() => {}}
-                            onAddKeyframe={() => {}}
-                            onDeletePoint={() => {}}
-                            onSelectPoint={(point, timeSeconds) => {
-                              handleSelectLabel(annotation.labelId, annotation.labelName)
-                              handleTimelinePointSelect(point, timeSeconds)
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              fontWeight: theme.custom.font.weight.bold,
+                              fontSize: theme.custom.font.size.md,
+                              color: theme.palette.text.primary,
+                              cursor: "pointer",
                             }}
-                            accentButtonSx={accentButtonSx}
-                            showControls={false}
-                            showHeader={false}
-                            showTopBorder={false}
-                            currentTimeSeconds={displayTime}
-                            showRangeLabels={false}
-                            showPointTimestamps={false}
-                            showPointHoverTimestamp
-                            timelineBorderRadius={0}
-                          />
+                            onClick={() =>
+                              handleSelectLabel(annotation.labelId, annotation.labelName)
+                            }
+                          >
+                            {annotation.labelName || annotation.labelId}
+                          </Typography>
                         </Box>
-                      </Box>
-                    )
-                  })}
-                </Stack>
-              </Box>
+                      ))}
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0,
+                        minHeight: 0,
+                        height: "100%",
+                        backgroundColor:
+                          theme.palette.mode === "dark"
+                            ? theme.palette.grey[800]
+                            : theme.palette.grey[200],
+                        borderRadius: 0,
+                        position: "relative",
+                        overflow: "hidden",
+                      }}
+                    >
+                    {timelineDuration > 0 && (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          left: `${Math.min(
+                            Math.max(displayTime / timelineDuration, 0),
+                            1
+                          ) * 100}%`,
+                          top: 0,
+                          bottom: 0,
+                          width: 2,
+                          backgroundColor: theme.palette.accent1.vibrant,
+                          transform: "translateX(-1px)",
+                          pointerEvents: "none",
+                          zIndex: 1,
+                        }}
+                      />
+                    )}
+                    {sortedAnnotations.map((annotation) => {
+                      const interpolationPoints = buildInterpolationPoints(annotation)
+                      return (
+                        <Box
+                          key={`graph-${annotation.id}`}
+                          sx={{
+                            flex: "1 1 0",
+                            minHeight: 48,
+                            display: "flex",
+                            alignItems: "center",
+                            px: 0,
+                          }}
+                          >
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <ActivityMapTimeline
+                              color={annotation.color}
+                              effectiveFps={effectiveFps}
+                              durationSeconds={timelineDuration}
+                              keyframes={annotation.keyframes}
+                              activeKeyframes={annotation.activeKeyframes}
+                              interpolationKeyframes={interpolationPoints}
+                              currentTimeSeconds={displayTime}
+                              showPlayhead={false}
+                              onSelectPoint={(frame) => {
+                                handleSelectLabel(
+                                  annotation.labelId,
+                                  annotation.labelName
+                                )
+                                  handleTimelinePointSelect(
+                                    {
+                                      annotationId: annotation.id,
+                                      frame,
+                                      type: "keyframe",
+                                    },
+                                    frame / effectiveFps
+                                  )
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                        )
+                      })}
+                    </Box>
+                  </Box>
+                </Box>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "220px minmax(0, 1fr)",
+                    gap: 2,
+                    alignItems: "center",
+                    flexShrink: 0,
+                    mt: 0,
+                    pt: 0,
+                  }}
+                >
+                  <Box />
+                  <Box
+                    sx={{
+                      position: "relative",
+                      height: 36,
+                      borderRadius: 0,
+                      backgroundColor:
+                        theme.palette.mode === "dark"
+                          ? theme.palette.grey[800]
+                          : theme.palette.grey[200],
+                    }}
+                  >
+                    {timelineDuration > 0 && (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          left: `${Math.min(
+                            Math.max(displayTime / timelineDuration, 0),
+                            1
+                          ) * 100}%`,
+                          top: 0,
+                          bottom: 0,
+                          width: 2,
+                          backgroundColor: theme.palette.accent1.vibrant,
+                          transform: "translateX(-1px)",
+                          pointerEvents: "none",
+                          zIndex: 1,
+                        }}
+                      />
+                    )}
+                    {timelineDuration > 0 && (() => {
+                      const total = timelineDuration
+                      let minorStep = 1
+                      let majorStep = 5
+                      if (total > 30 && total <= 120) {
+                        minorStep = 5
+                        majorStep = 15
+                      } else if (total > 120 && total <= 600) {
+                        minorStep = 15
+                        majorStep = 60
+                      } else if (total > 600 && total <= 3600) {
+                        minorStep = 60
+                        majorStep = 300
+                      } else if (total > 3600) {
+                        minorStep = 300
+                        majorStep = 600
+                      }
+                      const ticks: number[] = []
+                      for (let t = 0; t <= total; t += minorStep) {
+                        ticks.push(Number(t.toFixed(4)))
+                      }
+                      if (ticks[ticks.length - 1] !== total) {
+                        ticks.push(total)
+                      }
+                      return ticks.map((tick, idx) => {
+                        const left = Math.min(Math.max(tick / total, 0), 1)
+                        const isMajor = tick % majorStep === 0 || tick === total
+                        return (
+                          <Box key={`map-tick-${tick}-${idx}`}>
+                            <Box
+                              sx={{
+                                position: "absolute",
+                                left: `calc(${left * 100}% ${
+                                  left <= 0 ? "+ 1px" : left >= 1 ? "- 1px" : ""
+                                })`,
+                                top: "50%",
+                                width: 2,
+                                height: isMajor ? 12 : 6,
+                                transform: "translate(-50%, -50%)",
+                                backgroundColor: theme.palette.grey[500],
+                              }}
+                            />
+                            {isMajor && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  position: "absolute",
+                                  left: `calc(${left * 100}% ${
+                                    left <= 0 ? "+ 1px" : left >= 1 ? "- 1px" : ""
+                                  })`,
+                                  top: "100%",
+                                  transform: "translate(-50%, 0)",
+                                  mt: 0.5,
+                                  fontSize: theme.custom.font.size.xs,
+                                  color: theme.palette.text.secondary,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {formatTime(tick)}
+                              </Typography>
+                            )}
+                          </Box>
+                        )
+                      })
+                    })()}
+                  </Box>
+                </Box>
+              </Stack>
             )}
           </Box>
         </Box>

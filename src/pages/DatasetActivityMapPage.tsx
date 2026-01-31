@@ -544,16 +544,16 @@ const DatasetActivityMapPage = () => {
             sx={{
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: theme.custom.radii.xs,
-              backgroundColor: theme.palette.background.paper,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? theme.palette.background.default
+                  : theme.palette.background.paper,
               boxShadow: theme.palette.boxShadow.light,
               p: 2,
               minHeight: 0,
             }}
           >
-            <Typography
-              variant="subtitle1"
-              sx={{ fontWeight: theme.custom.font.weight.medium }}
-            >
+            <Typography variant="h5" sx={{ fontWeight: 200 }}>
               Toggles & Controls
             </Typography>
           </Box>
@@ -562,7 +562,10 @@ const DatasetActivityMapPage = () => {
             sx={{
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: theme.custom.radii.xs,
-              backgroundColor: theme.palette.background.paper,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? theme.palette.background.default
+                  : theme.palette.background.paper,
               boxShadow: theme.palette.boxShadow.light,
               p: 2,
               minHeight: 0,
@@ -575,7 +578,10 @@ const DatasetActivityMapPage = () => {
                 flex: 1,
                 minHeight: 0,
                 borderRadius: theme.custom.radii.xs,
-                backgroundColor: theme.palette.grey[100],
+                backgroundColor:
+                  theme.palette.mode === "dark"
+                    ? theme.palette.grey[900]
+                    : theme.palette.grey[100],
                 position: "relative",
                 overflow: "hidden",
               }}
@@ -624,7 +630,7 @@ const DatasetActivityMapPage = () => {
                         top: clamp(displayRect.y, 0, videoBounds.height),
                         width: Math.max(displayRect.w, 0),
                         height: Math.max(displayRect.h, 0),
-                        border: `2px solid ${annotation.color}`,
+                        border: `3px solid ${annotation.color}`,
                         boxShadow:
                           selectedLabelId === annotation.labelId
                             ? `0 0 0 2px ${theme.palette.common.white}`
@@ -703,7 +709,10 @@ const DatasetActivityMapPage = () => {
               gridColumn: "1 / -1",
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: theme.custom.radii.xs,
-              backgroundColor: theme.palette.background.paper,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? theme.palette.background.default
+                  : theme.palette.background.paper,
               boxShadow: theme.palette.boxShadow.light,
               p: 2,
               minHeight: 0,
@@ -712,9 +721,9 @@ const DatasetActivityMapPage = () => {
             }}
           >
             <Typography
-              variant="subtitle1"
+              variant="h5"
               sx={{
-                fontWeight: theme.custom.font.weight.medium,
+                fontWeight: 200,
                 mb: 1.5,
               }}
             >
@@ -754,8 +763,9 @@ const DatasetActivityMapPage = () => {
                         <Typography
                           variant="subtitle2"
                           sx={{
-                            fontWeight: theme.custom.font.weight.medium,
-                            color: annotation.color,
+                            fontWeight: theme.custom.font.weight.bold,
+                            fontSize: theme.custom.font.size.md,
+                            color: theme.palette.text.primary,
                             cursor: "pointer",
                           }}
                           onClick={() =>
@@ -791,6 +801,10 @@ const DatasetActivityMapPage = () => {
                             showHeader={false}
                             showTopBorder={false}
                             currentTimeSeconds={displayTime}
+                            showRangeLabels={false}
+                            showPointTimestamps={false}
+                            showPointHoverTimestamp
+                            timelineBorderRadius={0}
                           />
                         </Box>
                       </Box>

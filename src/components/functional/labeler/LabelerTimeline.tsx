@@ -1,5 +1,5 @@
 import React from "react"
-import { Box, Button, Stack, Typography } from "@mui/material"
+import { Box, Button, Stack, Tooltip, Typography } from "@mui/material"
 import { useTheme } from "@mui/material/styles"
 import { formatTime, frameToTime } from "../../../utils/labeler/labelerUtils"
 import type { TimelinePoint } from "../../../types/labeler/labelerTypes"
@@ -27,6 +27,13 @@ type LabelerTimelineProps = {
   showHeader?: boolean
   showTopBorder?: boolean
   currentTimeSeconds?: number
+  showRangeLabels?: boolean
+  timestampFontSize?: number | string
+  showPointTimestamps?: boolean
+  showPointHoverTimestamp?: boolean
+  timelineBorderRadius?: number
+  timelineHeight?: number
+  pointSize?: number
 }
 
 const LabelerTimeline = ({
@@ -52,8 +59,17 @@ const LabelerTimeline = ({
   showHeader = true,
   showTopBorder = true,
   currentTimeSeconds,
+  showRangeLabels = true,
+  timestampFontSize,
+  showPointTimestamps = true,
+  showPointHoverTimestamp = true,
+  timelineBorderRadius = 6,
+  timelineHeight = 26,
+  pointSize = 10,
 }: LabelerTimelineProps) => {
   const theme = useTheme()
+  const effectiveTimestampFontSize =
+    timestampFontSize ?? theme.custom.font.size.xs
 
   return (
     <Box
@@ -124,9 +140,12 @@ const LabelerTimeline = ({
         <Box
           sx={{
             position: "relative",
-            height: 26,
-            borderRadius: 6,
-            backgroundColor: theme.palette.grey[200],
+            height: timelineHeight,
+            borderRadius: timelineBorderRadius,
+            backgroundColor:
+              theme.palette.mode === "dark"
+                ? theme.palette.grey[800]
+                : theme.palette.grey[200],
           }}
         >
           {typeof currentTimeSeconds === "number" && duration > 0 && (
@@ -194,33 +213,41 @@ const LabelerTimeline = ({
               selectedTimelinePoint?.annotationId === point.annotationId &&
               selectedTimelinePoint.frame === point.frame &&
               selectedTimelinePoint.type === point.type
-            return (
-              <Box
-                key={`${point.annotationId}-${point.type}-${point.frame}-${idx}`}
-                onClick={() => onSelectPoint(point, timeSeconds)}
-                sx={{
-                  position: "absolute",
-                  left: `calc(${left * 100}% - 5px)`,
-                  top: "50%",
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  transform: "translateY(-50%)",
-                  backgroundColor:
-                    point.type === "keyframe"
-                      ? activeLabelColor ?? theme.palette.primary.main
-                      : "transparent",
-                  border: `2px solid ${
-                    point.type === "toggle"
-                      ? activeLabelColor ?? theme.palette.primary.main
-                      : theme.palette.common.white
-                  }`,
-                  boxShadow: isSelected
-                    ? `0 0 0 2px ${theme.palette.primary.main}`
-                    : "none",
-                  cursor: "pointer",
-                }}
-              />
+              return (
+                <Tooltip
+                  key={`${point.annotationId}-${point.type}-${point.frame}-${idx}`}
+                  title={
+                    showPointHoverTimestamp ? formatTime(timeSeconds) : ""
+                  }
+                  arrow
+                  disableHoverListener={!showPointHoverTimestamp}
+                >
+                  <Box
+                    onClick={() => onSelectPoint(point, timeSeconds)}
+                    sx={{
+                      position: "absolute",
+                      left: `calc(${left * 100}% - ${pointSize / 2}px)`,
+                      top: "50%",
+                      width: pointSize,
+                      height: pointSize,
+                      borderRadius: "50%",
+                      transform: "translateY(-50%)",
+                      backgroundColor:
+                        point.type === "keyframe"
+                        ? activeLabelColor ?? theme.palette.primary.main
+                        : "transparent",
+                    border: `2px solid ${
+                      point.type === "toggle"
+                        ? activeLabelColor ?? theme.palette.primary.main
+                        : theme.palette.common.white
+                    }`,
+                    boxShadow: isSelected
+                      ? `0 0 0 2px ${theme.palette.primary.main}`
+                      : "none",
+                    cursor: "pointer",
+                  }}
+                />
+              </Tooltip>
             )
           })}
           {interpolationPoints.map((point, idx) => {
@@ -231,83 +258,93 @@ const LabelerTimeline = ({
               selectedTimelinePoint?.annotationId === point.annotationId &&
               selectedTimelinePoint.frame === point.frame &&
               selectedTimelinePoint.type === point.type
-            return (
-              <Box
-                key={`interp-${point.annotationId}-${point.frame}-${idx}`}
-                onClick={() =>
-                  onSelectPoint(
-                    {
-                      annotationId: point.annotationId,
-                      frame: point.frame,
-                      type: "interpolation",
-                    },
-                    timeSeconds
-                  )
-                }
-                sx={{
-                  position: "absolute",
-                  left: `calc(${left * 100}% - 5px)`,
-                  top: "50%",
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  transform: "translateY(-50%)",
-                  backgroundColor: point.active
-                    ? theme.palette.info.main
-                    : theme.palette.grey[400],
-                  border: `2px solid ${theme.palette.common.white}`,
-                  boxShadow: isSelected
-                    ? `0 0 0 2px ${theme.palette.info.main}`
-                    : "none",
-                  cursor: "pointer",
-                }}
-              />
+              return (
+                <Tooltip
+                  key={`interp-${point.annotationId}-${point.frame}-${idx}`}
+                  title={
+                    showPointHoverTimestamp ? formatTime(timeSeconds) : ""
+                  }
+                  arrow
+                  disableHoverListener={!showPointHoverTimestamp}
+                >
+                  <Box
+                    onClick={() =>
+                      onSelectPoint(
+                        {
+                          annotationId: point.annotationId,
+                          frame: point.frame,
+                          type: "interpolation",
+                        },
+                        timeSeconds
+                      )
+                    }
+                    sx={{
+                      position: "absolute",
+                      left: `calc(${left * 100}% - ${pointSize / 2}px)`,
+                      top: "50%",
+                      width: pointSize,
+                      height: pointSize,
+                      borderRadius: "50%",
+                      transform: "translateY(-50%)",
+                      backgroundColor: point.active
+                      ? theme.palette.info.main
+                      : theme.palette.grey[400],
+                    border: `2px solid ${theme.palette.common.white}`,
+                    boxShadow: isSelected
+                      ? `0 0 0 2px ${theme.palette.info.main}`
+                      : "none",
+                    cursor: "pointer",
+                  }}
+                />
+              </Tooltip>
             )
           })}
-          {timelinePoints.map((point, idx) => {
-            if (!duration || duration <= 0) return null
-            const timeSeconds = frameToTime(point.frame, effectiveFps)
-            const left = Math.min(Math.max(timeSeconds / duration, 0), 1)
-            return (
-              <Typography
-                key={`ts-${point.annotationId}-${point.type}-${point.frame}-${idx}`}
-                variant="caption"
-                sx={{
-                  position: "absolute",
-                  left: `calc(${left * 100}% - 16px)`,
-                  top: "100%",
-                  mt: 0.25,
-                  fontSize: theme.custom.font.size.xs,
-                  color: theme.palette.text.secondary,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {formatTime(timeSeconds)}
-              </Typography>
-            )
-          })}
-          {interpolationPoints.map((point, idx) => {
-            if (!duration || duration <= 0) return null
-            const timeSeconds = frameToTime(point.frame, effectiveFps)
-            const left = Math.min(Math.max(timeSeconds / duration, 0), 1)
-            return (
-              <Typography
-                key={`ts-interp-${point.annotationId}-${point.frame}-${idx}`}
-                variant="caption"
-                sx={{
-                  position: "absolute",
-                  left: `calc(${left * 100}% - 16px)`,
-                  top: "100%",
-                  mt: 0.25,
-                  fontSize: theme.custom.font.size.xs,
-                  color: theme.palette.text.secondary,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {formatTime(timeSeconds)}
-              </Typography>
-            )
-          })}
+          {showPointTimestamps &&
+            timelinePoints.map((point, idx) => {
+              if (!duration || duration <= 0) return null
+              const timeSeconds = frameToTime(point.frame, effectiveFps)
+              const left = Math.min(Math.max(timeSeconds / duration, 0), 1)
+              return (
+                <Typography
+                  key={`ts-${point.annotationId}-${point.type}-${point.frame}-${idx}`}
+                  variant="caption"
+                  sx={{
+                    position: "absolute",
+                    left: `calc(${left * 100}% - 16px)`,
+                    top: "100%",
+                    mt: 0.25,
+                    fontSize: effectiveTimestampFontSize,
+                    color: theme.palette.text.secondary,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatTime(timeSeconds)}
+                </Typography>
+              )
+            })}
+          {showPointTimestamps &&
+            interpolationPoints.map((point, idx) => {
+              if (!duration || duration <= 0) return null
+              const timeSeconds = frameToTime(point.frame, effectiveFps)
+              const left = Math.min(Math.max(timeSeconds / duration, 0), 1)
+              return (
+                <Typography
+                  key={`ts-interp-${point.annotationId}-${point.frame}-${idx}`}
+                  variant="caption"
+                  sx={{
+                    position: "absolute",
+                    left: `calc(${left * 100}% - 16px)`,
+                    top: "100%",
+                    mt: 0.25,
+                    fontSize: effectiveTimestampFontSize,
+                    color: theme.palette.text.secondary,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatTime(timeSeconds)}
+                </Typography>
+              )
+            })}
           {!activeLabelId && (
             <Typography
               variant="caption"
@@ -323,14 +360,16 @@ const LabelerTimeline = ({
             </Typography>
           )}
         </Box>
-        <Stack direction="row" justifyContent="space-between">
-          <Typography variant="caption" color="text.secondary">
-            {formatTime(0)}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {formatTime(duration)}
-          </Typography>
-        </Stack>
+        {showRangeLabels && (
+          <Stack direction="row" justifyContent="space-between">
+            <Typography variant="caption" color="text.secondary">
+              {formatTime(0)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {formatTime(duration)}
+            </Typography>
+          </Stack>
+        )}
       </Stack>
     </Box>
   )
